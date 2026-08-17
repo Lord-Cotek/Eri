@@ -1,0 +1,17 @@
+/* Ẹ̀rí design tokens — COTEK "evangelical clarity", sober variant.
+   Colour carries moral state and nothing else. Never decorative. */
+:root {
+  --bg:       #0B0E14;
+  --surface:  #141926;
+  --border:   #242B3B;
+  --ink:      #E8EBF2;
+  --muted:    #8892A6;
+
+  --steel:    #93AECB;  /* resting / neutral — the Ẹ̀rí accent */
+  --sage:     #7FA88A;  /* he disclosed himself */
+  --amber:    #F59E0B;  /* the window lapsed — warning only, never "good" */
+  --alert:    #C4574F;  /* heartbeat lost */
+
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-mono: "IBM Plex Mono", "DM Mono", ui-monospace, monospace;
+}
