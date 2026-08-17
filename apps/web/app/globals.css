@@ -1,0 +1,203 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ══════════════════════════════════════════════════════════════════════
+   Ẹ̀rí — design tokens.
+   COTEK "evangelical clarity", tuned sober.
+
+   Colour carries moral state and nothing else. It is never decorative.
+   There is no token that means "clean", because the product does not
+   measure that. `--sage` means one thing — he came forward himself — and
+   nothing else may borrow it.
+
+   The hex values are the brand kit's own (public/eri-brand-v1/web/tokens.css).
+   The `-rgb` triplets beside them exist so Tailwind's alpha modifiers
+   (`border-steel/30`) work; they must be kept in step by hand.
+   ══════════════════════════════════════════════════════════════════════ */
+:root {
+  --bg: #0b0e14;
+  --surface: #141926;
+  --border: #242b3b;
+  --ink: #e8ebf2;
+  --muted: #8892a6;
+
+  --steel: #93aecb; /* resting / neutral — the Ẹ̀rí accent          */
+  --sage: #7fa88a; /* he disclosed himself                         */
+  --amber: #f59e0b; /* the window lapsed — a warning, never "good"  */
+  --alert: #c4574f; /* heartbeat lost                               */
+
+  --bg-rgb: 11 14 20;
+  --surface-rgb: 20 25 38;
+  --border-rgb: 36 43 59;
+  --ink-rgb: 232 235 242;
+  --muted-rgb: 136 146 166;
+  --steel-rgb: 147 174 203;
+  --sage-rgb: 127 168 138;
+  --amber-rgb: 245 158 11;
+  --alert-rgb: 196 87 79;
+
+  --font-display: var(--font-playfair), Georgia, serif;
+  /* IBM Plex Mono, not DM Mono. DM Mono has no glyphs for ẹ ọ Ẹ Ọ and so
+     cannot render this app's own name, or Ẹlẹ́rìí's. */
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", "DM Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Editorial grain. Fixed, subtle, never in the way. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* Steel, not amber. Amber means a window lapsed and must not appear as
+     ordinary chrome. */
+  ::selection {
+    background: rgb(var(--steel-rgb) / 0.25);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--steel);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+  }
+
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+    font-size: inherit;
+  }
+}
+
+@layer components {
+  /* The signature COTEK section marker. Steel here, not amber. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.7rem;
+    color: var(--steel);
+  }
+
+  .hairline {
+    height: 1px;
+    background: var(--border);
+  }
+
+  .prose-plain p {
+    margin-bottom: 1rem;
+    max-width: 66ch;
+  }
+  .prose-plain h1,
+  .prose-plain h2,
+  .prose-plain h3 {
+    margin: 2rem 0 0.75rem;
+  }
+  .prose-plain h1 {
+    font-size: 1.75rem;
+  }
+  .prose-plain h2 {
+    font-size: 1.25rem;
+  }
+  .prose-plain h3 {
+    font-size: 1rem;
+  }
+  .prose-plain ul {
+    list-style: none;
+    margin-bottom: 1rem;
+  }
+  .prose-plain li {
+    position: relative;
+    padding-left: 1.25rem;
+    margin-bottom: 0.35rem;
+    max-width: 66ch;
+  }
+  .prose-plain li::before {
+    content: "—";
+    position: absolute;
+    left: 0;
+    color: var(--muted);
+  }
+  .prose-plain strong {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .prose-plain hr {
+    border: 0;
+    height: 1px;
+    background: var(--border);
+    margin: 2rem 0;
+  }
+
+  /* One entrance, used sparingly. No celebration animations exist in this
+     app and none should be added. */
+  .rise {
+    animation: rise 0.6s cubic-bezier(0.2, 0.6, 0.2, 1) both;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}

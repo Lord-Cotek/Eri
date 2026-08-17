@@ -1,0 +1,436 @@
+// Ẹ̀rí — data model.
+//
+// Read docs/PRIVACY-INVARIANTS.md before changing anything here.
+//
+// The governing rule: **this database must be safe to breach.** The worst a
+// full dump should reveal about any man is that an event of some coarse
+// category occurred at some time, and whether he owned it. Not what he saw.
+// Not where. Not which app. If a column would let a reader reconstruct any of
+// that, it does not belong in this file.
+//
+// Auth models follow the NextAuth (v4) contract and are kept intact.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------------
+// Enums                                                              
+// ------------------------------------------------------------------
+
+enum CovenantStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+  DECLINED
+}
+
+enum ActorRole {
+  SUBJECT
+  ALLY
+  SYSTEM
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  MACOS
+  WINDOWS
+  SIMULATOR
+}
+
+enum DeviceStatus {
+  ACTIVE
+  SILENT
+  RETIRED
+}
+
+/// Coarse categories. Deliberately few, deliberately blunt. There is no
+/// mechanism anywhere in the system to refine one of these into a description.
+enum EventCategory {
+  EXPLICIT_IMAGE
+  EXPLICIT_VIDEO
+  EXPLICIT_TEXT
+  SUGGESTIVE
+  BLOCKED_ATTEMPT
+  UNKNOWN
+}
+
+/// One-way lifecycle. See packages/protocol/src/state-machine.ts.
+/// There is no DISMISSED. A contested event is still reported, labelled.
+enum EventState {
+  PENDING
+  DISCLOSED
+  LAPSED
+  CONTESTED
+}
+
+/// Pattern signals only. Never content, never shown to the ally individually.
+enum AntecedentKind {
+  LATE_HOUR
+  LONG_IDLE_UNLOCK
+  RAPID_APP_SWITCH
+  OFF_CHARGER_OVERNIGHT
+}
+
+enum SilenceSeverity {
+  WARNING
+  ALERT
+}
+
+enum AckKind {
+  SEEN
+  STILL_HERE
+}
+
+/// Every notification body is generated from a template in lib/notify.ts.
+/// None of them take event content as an input, because there is none to take.
+enum NotificationKind {
+  EVENT_PENDING
+  EVENT_DISCLOSED
+  EVENT_CONTESTED
+  EVENT_LAPSED
+  ANTECEDENT_NUDGE
+  SILENCE_ALERT
+  COVENANT_INVITED
+  COVENANT_ACTIVATED
+  COVENANT_REVOKED
+  COVENANT_DECLINED
+  GRACE_WINDOW_CHANGED
+  ALLY_ACK
+  DIGEST_READY
+}
+
+// ------------------------------------------------------------------
+// NextAuth                                                           
+// ------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+
+  accounts Account[]
+  sessions Session[]
+
+  covenantsAsSubject Covenant[]     @relation("SubjectCovenants")
+  covenantsAsAlly    Covenant[]     @relation("AllyCovenants")
+  devices            Device[]
+  allyAcks           AllyAck[]
+  notifications      Notification[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ------------------------------------------------------------------
+// The covenant                                                       
+// ------------------------------------------------------------------
+
+/// Two consenting adults. One subject, one ally. Both sign the same terms,
+/// and the version they signed is recorded so a later revision cannot be
+/// applied to them retroactively.
+///
+/// Consent is revocable but never silently: revoking sets `revokedBy` and the
+/// ally is notified in the same transaction. There is no quiet exit.
+model Covenant {
+  id        String         @id @default(cuid())
+  subjectId String
+  allyId    String?
+  status    CovenantStatus @default(PENDING)
+
+  graceWindowMinutes Int    @default(30)
+  termsVersion       String
+
+  subjectSignedAt DateTime?
+  allySignedAt    DateTime?
+
+  createdAt   DateTime   @default(now())
+  activatedAt DateTime?
+  revokedAt   DateTime?
+  revokedBy   ActorRole?
+
+  /// Single-use invitation token for /covenant/accept/[token].
+  inviteToken     String   @unique
+  inviteEmail     String?
+  inviteExpiresAt DateTime
+
+  subject User  @relation("SubjectCovenants", fields: [subjectId], references: [id], onDelete: Cascade)
+  ally    User? @relation("AllyCovenants", fields: [allyId], references: [id], onDelete: SetNull)
+
+  events        Event[]
+  digests       Digest[]
+  pairingCodes  PairingCode[]
+  notifications Notification[]
+
+  @@index([subjectId])
+  @@index([allyId])
+  @@index([status])
+}
+
+// ------------------------------------------------------------------
+// Devices                                                            
+// ------------------------------------------------------------------
+
+/// A device the subject installed the sentinel on himself.
+///
+/// `publicKey` is the raw 32-byte Ed25519 key, base64. The private half never
+/// leaves the device, so the server can verify that an event came from his
+/// phone but can never manufacture one.
+model Device {
+  id        String         @id @default(cuid())
+  subjectId String
+  platform  DevicePlatform
+  label     String
+
+  publicKey         String
+  sentinelVersion   String
+  classifierVersion String
+
+  registeredAt    DateTime     @default(now())
+  lastHeartbeatAt DateTime?
+  status          DeviceStatus @default(ACTIVE)
+  retiredAt       DateTime?
+
+  subject     User         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  events      Event[]
+  antecedents Antecedent[]
+  silences    Silence[]
+
+  @@index([subjectId])
+  @@index([status])
+  @@index([lastHeartbeatAt])
+}
+
+/// Short-lived, single-use code that a device exchanges for a Device record.
+/// Shown once in the web app; never emailed, never reusable.
+model PairingCode {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  covenantId     String
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  usedAt         DateTime?
+  usedByDeviceId String?
+
+  covenant Covenant @relation(fields: [covenantId], references: [id], onDelete: Cascade)
+
+  @@index([covenantId])
+}
+
+// ------------------------------------------------------------------
+// Events                                                             
+// ------------------------------------------------------------------
+
+/// This model must never gain a column containing captured content.
+/// See docs/PRIVACY-INVARIANTS.md.
+///
+/// Everything the ally will ever learn about an event is in these columns:
+/// a coarse category, when it happened, and whether the man owned it. The
+/// `disclosureNote` is the single free-text field, it is written by the
+/// subject in his own words, and it is the only thing here he chose to say.
+///
+/// Events are append-only. Nothing deletes one. Nothing edits one after
+/// `resolvedAt` is set.
+model Event {
+  id         String @id @default(cuid())
+  deviceId   String
+  covenantId String
+
+  /// When detection happened on-device.
+  occurredAt DateTime
+  /// When the server accepted it. The grace window runs from here, not from
+  /// `occurredAt`, so an offline device cannot burn a man's window for him.
+  receivedAt DateTime @default(now())
+
+  category          EventCategory
+  confidence        Float
+  classifierVersion String
+
+  state           EventState @default(PENDING)
+  windowExpiresAt DateTime
+  resolvedAt      DateTime?
+
+  /// Subject-authored, max 500 characters, optional. Nobody else can write here.
+  disclosureNote String? @db.VarChar(500)
+
+  /// Replay protection: the nonce and signature the device sent.
+  nonce     String @unique
+  signature String
+
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  covenant Covenant @relation(fields: [covenantId], references: [id], onDelete: Cascade)
+
+  allyAcks      AllyAck[]
+  notifications Notification[]
+
+  @@index([covenantId, state])
+  @@index([covenantId, occurredAt])
+  @@index([state, windowExpiresAt])
+  @@index([deviceId])
+}
+
+/// Pattern signals — a late hour, a phone off the charger. Never content.
+///
+/// These belong to the subject. They drive the pre-emptive nudge, because the
+/// intervention belongs *before* the event. The ally never sees an individual
+/// antecedent; only aggregate rhythm reaches him, and only in the digest.
+model Antecedent {
+  id         String         @id @default(cuid())
+  deviceId   String
+  occurredAt DateTime
+  receivedAt DateTime       @default(now())
+  kind       AntecedentKind
+
+  nonce     String @unique
+  signature String
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, occurredAt])
+}
+
+/// A gap in heartbeats.
+///
+/// You cannot make an app un-uninstallable, so Ẹ̀rí does not try. It makes the
+/// absence reportable instead. Silence is the loudest signal in the system.
+model Silence {
+  id             String          @id @default(cuid())
+  deviceId       String
+  startedAt      DateTime
+  endedAt        DateTime?
+  severity       SilenceSeverity
+  allyNotifiedAt DateTime?
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, startedAt])
+  @@index([endedAt])
+}
+
+// ------------------------------------------------------------------
+// The ally's rhythm                                                  
+// ------------------------------------------------------------------
+
+/// The weekly digest. `questionText` is the one question the ally is asked to
+/// bring; `summaryText` is a sober account of the week's shape. Both are
+/// written by Ẹlẹ́rìí from counts and timings only — he is never given content,
+/// because there is none to give him.
+model Digest {
+  id           String    @id @default(cuid())
+  covenantId   String
+  weekStart    DateTime
+  generatedAt  DateTime  @default(now())
+  questionText String
+  summaryText  String
+  readAt       DateTime?
+
+  covenant Covenant @relation(fields: [covenantId], references: [id], onDelete: Cascade)
+
+  allyAcks      AllyAck[]
+  notifications Notification[]
+
+  @@unique([covenantId, weekStart])
+  @@index([covenantId, weekStart])
+}
+
+/// "I saw it. I'm still here." — the whole of the ally's reply surface.
+/// Attached to either a digest or an event, never both.
+model AllyAck {
+  id        String   @id @default(cuid())
+  digestId  String?
+  eventId   String?
+  allyId    String
+  kind      AckKind
+  createdAt DateTime @default(now())
+
+  digest Digest? @relation(fields: [digestId], references: [id], onDelete: Cascade)
+  event  Event?  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ally   User    @relation(fields: [allyId], references: [id], onDelete: Cascade)
+
+  @@index([allyId])
+  @@index([digestId])
+  @@index([eventId])
+}
+
+// ------------------------------------------------------------------
+// Delivery and replay protection                                     
+// ------------------------------------------------------------------
+
+/// The in-app record of something a person was told.
+///
+/// `body` is assembled from fixed templates in lib/notify.ts. Those templates
+/// interpolate a category label, a time and a state — never content, and never
+/// anything a device sent as free text, because devices cannot send free text.
+model Notification {
+  id     String           @id @default(cuid())
+  userId String
+  kind   NotificationKind
+  body   String
+
+  eventId    String?
+  covenantId String?
+  digestId   String?
+
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+  emailedAt DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event    Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  covenant Covenant? @relation(fields: [covenantId], references: [id], onDelete: SetNull)
+  digest   Digest?   @relation(fields: [digestId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+/// Every signed request carries a single-use nonce. Seeing one twice is a
+/// replay and is rejected. Rows older than the clock-skew window are pruned by
+/// the sweep job — they have no value once a replayed request would be stale.
+model SeenNonce {
+  nonce    String   @id
+  deviceId String?
+  seenAt   DateTime @default(now())
+
+  @@index([seenAt])
+}

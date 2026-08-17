@@ -1,0 +1,29 @@
+{
+  "name": "eri",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ẹ̀rí — an adult-to-adult accountability covenant. A COTEK product.",
+  "workspaces": [
+    "packages/*",
+    "apps/web"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @eri/protocol && npm run build --workspace @eri/simulator && npm run build --workspace @eri/web",
+    "dev": "npm run dev --workspace @eri/web",
+    "start": "npm run start --workspace @eri/web",
+    "lint": "npm run lint --workspace @eri/web",
+    "typecheck": "npm run typecheck --workspace @eri/protocol && npm run typecheck --workspace @eri/simulator && npm run typecheck --workspace @eri/web",
+    "db:push": "npm run db:push --workspace @eri/web",
+    "db:studio": "npm run db:studio --workspace @eri/web",
+    "sim": "npm run sim --workspace @eri/simulator",
+    "postinstall": "npm run build --workspace @eri/protocol && npm run build --workspace @eri/simulator && npm run prisma:generate --workspace @eri/web",
+    "check:privacy": "bash scripts/privacy-check.sh",
+    "acceptance": "node scripts/acceptance.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
