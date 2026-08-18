@@ -23,6 +23,8 @@ import { SentinelClient } from "@eri/protocol/client";
 import { generateDeviceKeyPair } from "@eri/protocol/signing";
 import { HEARTBEAT_INTERVAL_MINUTES, type AntecedentKind, type EventCategory } from "@eri/protocol";
 
+import { blank, siteUrl } from "@/lib/env";
+
 export function simulatorEnabled(): boolean {
   return process.env.NODE_ENV !== "production";
 }
@@ -50,11 +52,11 @@ type SimDeviceRecord = {
 };
 
 function storeDir(): string {
-  return resolve(process.env.ERI_SIM_HOME ?? join(process.cwd(), ".eri-sim"));
+  return resolve(blank(process.env.ERI_SIM_HOME) ?? join(process.cwd(), ".eri-sim"));
 }
 
 function baseUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  return siteUrl();
 }
 
 function save(record: SimDeviceRecord): void {

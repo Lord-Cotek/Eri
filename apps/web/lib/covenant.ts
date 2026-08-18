@@ -20,6 +20,7 @@ import { GRACE_WINDOW_DEFAULT_MINUTES, GRACE_WINDOW_MAX_MINUTES, GRACE_WINDOW_MI
 
 import { prisma } from "@/lib/prisma";
 import { COPY, notify } from "@/lib/notify";
+import { siteUrl } from "@/lib/env";
 
 /**
  * The version of `content/covenant-terms.md` currently in force.
@@ -77,8 +78,7 @@ export function clampGraceWindow(minutes: number): number {
 }
 
 export function inviteUrl(token: string): string {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  return `${base}/covenant/accept/${token}`;
+  return `${siteUrl()}/covenant/accept/${token}`;
 }
 
 export async function sendInvite(covenant: Covenant, subjectName: string): Promise<void> {

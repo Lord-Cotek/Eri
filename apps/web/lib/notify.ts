@@ -18,10 +18,10 @@
 
 import "server-only";
 
-import nodemailer from "nodemailer";
 import type { NotificationKind, Prisma } from "@prisma/client";
 import { ALLY_OUTCOME_COPY, EVENT_CATEGORY_LABELS, type EventCategory, type EventState } from "@eri/protocol";
 
+import { sendMail } from "@/lib/mailer";
 import { prisma } from "@/lib/prisma";
 import { clockTime, humanDuration, longDate } from "@/lib/time";
 
@@ -43,36 +43,10 @@ export type NotifyInput = {
 /* Delivery                                                            */
 /* ------------------------------------------------------------------ */
 
-let transport: nodemailer.Transporter | null = null;
-
-function mailer(): nodemailer.Transporter | null {
-  const server = process.env.EMAIL_SERVER;
-  if (!server) return null;
-  transport ??= nodemailer.createTransport(server);
-  return transport;
-}
-
-async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
-  const transporter = mailer();
-  if (!transporter) {
-    // In development the covenant should still be demonstrable end to end, so
-    // the would-be email is logged rather than silently dropped.
-    console.info(`[notify] (no SMTP configured) → ${to}: ${subject}\n${body}`);
-    return false;
-  }
-  try {
-    await transporter.sendMail({
-      to,
-      from: process.env.EMAIL_FROM ?? "no-reply@cotek.live",
-      subject,
-      text: body,
-    });
-    return true;
-  } catch (error) {
-    console.error("[notify] email failed", error);
-    return false;
-  }
-}
+/**
+ * Delivery is `lib/mailer.ts`'s problem — Resend or SMTP, decided there.
+ * This module's job is the record and the copy.
+ */
 
 /**
  * Record a notification and try to deliver it.
@@ -98,7 +72,7 @@ export async function notify(input: NotifyInput): Promise<void> {
   const user = await db.user.findUnique({ where: { id: input.userId }, select: { email: true } });
   if (!user?.email) return;
 
-  const sent = await sendEmail(user.email, input.subject ?? "Ẹ̀rí", input.body);
+  const sent = await sendMail({ to: user.email, subject: input.subject ?? "Ẹ̀rí", text: input.body });
   if (sent) {
     await db.notification.update({ where: { id: record.id }, data: { emailedAt: new Date() } });
   }

@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+import { siteUrl } from "@/lib/env";
+
+const base = siteUrl();
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -11,6 +13,6 @@ export default function robots(): MetadataRoute.Robots {
       // the sign-in page are the only public ones.
       disallow: ["/subject", "/ally", "/devices", "/settings", "/covenant/", "/simulator", "/api/"],
     },
-    sitemap: `${siteUrl}/sitemap.xml`,
+    sitemap: `${base}/sitemap.xml`,
   };
 }

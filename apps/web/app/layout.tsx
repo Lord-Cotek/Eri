@@ -3,7 +3,7 @@ import { IBM_Plex_Mono, Playfair_Display } from "next/font/google";
 // Throws when required configuration is missing — including the crisis line.
 // Imported here as well as in instrumentation.ts so that `next build`, which
 // prerenders this layout, fails rather than shipping a broken deployment.
-import "@/lib/env";
+import { siteUrl } from "@/lib/env";
 import "./globals.css";
 
 const display = Playfair_Display({
@@ -23,10 +23,10 @@ const mono = IBM_Plex_Mono({
   display: "swap",
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const site = siteUrl();
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(site),
   title: { default: "Ẹ̀rí", template: "%s · Ẹ̀rí" },
   description:
     "An accountability covenant between two men. The image never leaves your phone, and you get the chance to speak first.",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     siteName: "Ẹ̀rí",
     title: "Ẹ̀rí",
     description: "The record stays on your phone. You get the chance to speak first.",
-    url: siteUrl,
+    url: site,
     images: [{ url: "/brand/social/og-image-1200x630.png", width: 1200, height: 630 }],
   },
   twitter: {

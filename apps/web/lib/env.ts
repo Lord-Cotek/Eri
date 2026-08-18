@@ -35,8 +35,16 @@ const REQUIRED_IN_PRODUCTION: Requirement[] = [
   { key: "NEXTAUTH_URL", why: "the canonical origin, e.g. https://eri.cotek.app." },
   { key: "NEXT_PUBLIC_SITE_URL", why: "used for invite links and OG metadata." },
   { key: "CRON_SECRET", why: "authorises the sweep. Without it the sweep endpoint is closed and windows never lapse." },
-  { key: "EMAIL_SERVER", why: "SMTP for sign-in links and notifications. Nobody can sign in without it." },
   { key: "EMAIL_FROM", why: "the address notifications are sent from." },
+];
+
+/**
+ * Mail needs one transport, not both. Resend over HTTPS is preferred on
+ * serverless; SMTP is the fallback for anyone not using it.
+ */
+const EMAIL_TRANSPORTS: Requirement[] = [
+  { key: "RESEND_API_KEY", why: "Resend API key — the preferred transport." },
+  { key: "EMAIL_SERVER", why: "SMTP connection string, if you are not using Resend." },
 ];
 
 function missing(requirements: Requirement[]): Requirement[] {
@@ -54,9 +62,20 @@ function isBuildPhase(): boolean {
 }
 
 function assertEnv(): void {
+  const inProduction = process.env.NODE_ENV === "production" && !isBuildPhase();
+
   const gaps = [
     ...missing(REQUIRED_ALWAYS),
-    ...(process.env.NODE_ENV === "production" && !isBuildPhase() ? missing(REQUIRED_IN_PRODUCTION) : []),
+    ...(inProduction ? missing(REQUIRED_IN_PRODUCTION) : []),
+    // One transport is enough; neither is a gap.
+    ...(inProduction && missing(EMAIL_TRANSPORTS).length === EMAIL_TRANSPORTS.length
+      ? [
+          {
+            key: "RESEND_API_KEY or EMAIL_SERVER",
+            why: "one mail transport. Sign-in is a magic link, so nobody can sign in without one.",
+          },
+        ]
+      : []),
   ];
 
   if (gaps.length === 0) return;
@@ -75,6 +94,31 @@ function assertEnv(): void {
 }
 
 assertEnv();
+
+/**
+ * Treat an empty or whitespace-only variable as unset.
+ *
+ * `??` does not: a Vercel variable added but left blank arrives as `""`, which
+ * is not nullish, so `process.env.X ?? default` yields `""` and the default
+ * never applies. That put an empty string into `new URL()` — which throws, and
+ * takes the whole site down — and into the Anthropic model name, which failed
+ * silently into the fallback copy. Read configuration through this.
+ */
+export function blank(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+/**
+ * The canonical origin. One definition, because invite links, OG metadata,
+ * robots and the sitemap must all agree — an invitation built against the wrong
+ * origin is an invitation a man cannot accept.
+ */
+export function siteUrl(): string {
+  // The literal `process.env.NEXT_PUBLIC_SITE_URL` reference is deliberate:
+  // Next inlines NEXT_PUBLIC_* only where it appears literally.
+  return blank(process.env.NEXT_PUBLIC_SITE_URL) ?? "http://localhost:3000";
+}
 
 /**
  * The crisis resources. Guaranteed present — `assertEnv` has already run.

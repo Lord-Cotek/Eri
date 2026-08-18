@@ -246,6 +246,47 @@ The root `npm run build` calls `build:local` for the web app, which omits
 Vercel's Root Directory must be `apps/web`, so `vercel.json` moved there; Vercel
 reads it relative to the Root Directory. Full walkthrough in `docs/DEPLOY.md`.
 
+### 18. Mail: Resend over HTTPS, SMTP as the fallback
+
+Sign-in is a magic link, so mail is not optional — without a transport nobody
+can sign in at all.
+
+`lib/mailer.ts` is now the single place that decides how a message leaves:
+`RESEND_API_KEY` first (one HTTPS request, which suits a serverless function
+better than holding an SMTP socket open across a cold start), then
+`EMAIL_SERVER` over nodemailer, then — in development only — the server
+console. `lib/env.ts` requires one of the first two in production, and either
+satisfies it.
+
+NextAuth's `sendVerificationRequest` is overridden so the sign-in link goes
+through the same transport as everything else, rather than nodemailer
+separately. It throws when the send fails, so the "check your inbox" page is
+never shown for a message that was not sent.
+
+Sent with `fetch` rather than the Resend SDK: it is one POST, and a transport
+this small does not justify a dependency whose major versions we would then
+have to track.
+
+### 19. Empty is not unset
+
+A variable added in the Vercel UI and left blank arrives as `""`, which is not
+nullish — so `process.env.X ?? default` yielded `""` and the default never
+applied. Three consequences, found by reading a real project's variable list:
+
+- `NEXT_PUBLIC_SITE_URL=""` put an empty string into `new URL()` in the root
+  layout, which **throws** — the whole site would have 500'd.
+- `ANTHROPIC_MODEL_DRAFTING=""` sent an empty model name to the API. Every
+  Ẹlẹ́rìí call would have failed into the plain fallback, silently.
+- `EMAIL_FROM=""` would have been rejected by the provider.
+
+`blank()` in `lib/env.ts` trims and treats empty as undefined, and every
+fallback now reads through it. `siteUrl()` is a single definition, because
+invite links, OG metadata, robots and the sitemap must agree — an invitation
+built against the wrong origin is one a man cannot accept.
+
+The literal `process.env.NEXT_PUBLIC_SITE_URL` reference is kept inside
+`siteUrl()`: Next only inlines `NEXT_PUBLIC_*` where it appears literally.
+
 ---
 
 ## Things left open on purpose

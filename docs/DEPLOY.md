@@ -108,15 +108,34 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" https://eri.cotek.app/api/cron/s
 # {"sweptAt":"…","lapsed":0,"silence":{…},"digests":0,"noncesPruned":0}
 ```
 
-## 7. Email
+## 7. Mail — Resend
 
-Sign-in is a magic link, so **without SMTP nobody can sign in at all** in
-production. The console fallback is development-only and refuses to engage when
-`NODE_ENV=production`.
+Sign-in is a magic link, so **without a mail transport nobody can sign in at
+all** in production. The console fallback is development-only and refuses to
+engage when `NODE_ENV=production`.
 
-Any SMTP provider works. `EMAIL_SERVER` is a connection string:
-`smtp://user:pass@host:587`. Set `EMAIL_FROM` to an address on a domain whose
-SPF and DKIM you control, or the links will land in spam.
+Two transports are supported, and you set exactly one:
+
+- **`RESEND_API_KEY`** — preferred. One HTTPS request per message, which suits a
+  serverless function better than holding an SMTP socket open across a cold
+  start. Everything Ẹ̀rí sends goes through it, sign-in links included.
+- **`EMAIL_SERVER`** — SMTP, `smtp://user:pass@host:587`, for anyone not on
+  Resend.
+
+If both are set, Resend wins.
+
+### Setting Resend up
+
+1. Add and verify a domain in Resend — `cotek.app`, or a subdomain such as
+   `mail.cotek.app` if you would rather keep the apex's DNS untouched.
+2. Add the DKIM and SPF records Resend gives you and wait for verification.
+3. Set `EMAIL_FROM` to an address **on that verified domain**, e.g.
+   `no-reply@cotek.app`. Resend rejects anything else, and the rejection is
+   logged with its reason.
+4. Set `RESEND_API_KEY` to the key. Leave `EMAIL_SERVER` unset.
+
+The `onboarding@resend.dev` sandbox address only delivers to your own account
+address. It is fine for a first smoke test and useless for a real ally.
 
 ## 8. After the first deploy
 
@@ -150,8 +169,8 @@ Set in **Project → Settings → Environment Variables**. Tick **Production** a
 | `NEXTAUTH_URL` | `https://eri.cotek.app` | preview: leave unset, Vercel infers, or set per-environment |
 | `NEXTAUTH_SECRET` | `openssl rand -base64 32` | signs session cookies |
 | `NEXT_PUBLIC_SITE_URL` | `https://eri.cotek.app` | invite links and OG metadata are built from this |
-| `EMAIL_SERVER` | `smtp://user:pass@host:587` | without it nobody can sign in |
-| `EMAIL_FROM` | `no-reply@cotek.app` | use a domain whose SPF/DKIM you control |
+| `RESEND_API_KEY` | `re_…` | **or** `EMAIL_SERVER` — one transport is required |
+| `EMAIL_FROM` | `no-reply@cotek.app` | domain must be verified with the provider |
 | `CRON_SECRET` | `openssl rand -hex 32` | without it the sweep is closed and **windows never lapse** |
 | `CRISIS_LINE_NAME` | e.g. `Samaritans` | **no default. Required at build too.** Set for the region you serve |
 | `CRISIS_LINE_CONTACT` | e.g. `116 123 (UK, 24 hours, free)` | a number a man can actually dial tonight |
@@ -172,6 +191,31 @@ deployment missing them fails the build rather than shipping.
 `NODE_ENV` — Vercel sets it. Setting it yourself can switch off the production
 guards: the dev sign-in console fallback, and the 404 on `/simulator`.
 
+### Variables the Neon integration adds
+
+The Vercel–Neon integration creates its own set, prefixed with the store name:
+`eri_DATABASE_URL`, `eri_PGHOST`, `eri_POSTGRES_PRISMA_URL`, and so on. **That
+prefix is fine and nothing needs renaming.** Ẹ̀rí never reads them; it reads the
+unprefixed `DATABASE_URL`, and that is the only one that matters.
+
+Set `DATABASE_URL` to the same value as `eri_DATABASE_URL` — the **pooled**
+string, the one with `-pooler` in the host. Do not point it at
+`eri_PGHOST_UNPOOLED` or `eri_POSTGRES_URL_NO_SSL`: serverless functions open
+many short-lived connections and will exhaust a direct one, and Neon requires
+TLS.
+
+The `BLOB_*` variables belong to Vercel Blob and are unused here. Ẹ̀rí stores no
+files, by design — there is nothing to store.
+
+### Empty is not unset
+
+A variable added in the Vercel UI and left blank arrives as `""`. The app treats
+empty as unset everywhere, so a blank optional variable falls back correctly
+rather than putting an empty string into a URL or a model name. Blank *required*
+variables still fail the boot check.
+
+Either delete the ones you are not using or leave them blank — both are safe.
+
 ### Copy-paste
 
 ```
@@ -179,10 +223,13 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST-pooler.REGION.aws.neon.tech/eri?ssl
 NEXTAUTH_URL=https://eri.cotek.app
 NEXTAUTH_SECRET=
 NEXT_PUBLIC_SITE_URL=https://eri.cotek.app
-EMAIL_SERVER=smtp://USER:PASSWORD@smtp.example.com:587
+RESEND_API_KEY=
 EMAIL_FROM=no-reply@cotek.app
 CRON_SECRET=
 CRISIS_LINE_NAME=Samaritans
 CRISIS_LINE_CONTACT=116 123 (UK, 24 hours, free)
 ANTHROPIC_API_KEY=
 ```
+
+`EMAIL_SERVER`, `ANTHROPIC_MODEL_DRAFTING` and `ANTHROPIC_MODEL_ROUTINE` can be
+deleted or left blank.
