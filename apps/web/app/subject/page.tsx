@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ANTECEDENT_KIND_LABELS, EVENT_CATEGORY_LABELS } from "@eri/protocol";
 
+import { InvitePanel } from "@/components/InvitePanel";
 import { PendingEventCard } from "@/components/PendingEventCard";
 import { RhythmChart } from "@/components/RhythmChart";
 import { Shell } from "@/components/Shell";
@@ -18,7 +19,7 @@ import {
   pendingEvent,
   recentAntecedents,
 } from "@/lib/queries";
-import { clockTime, dayAndTime } from "@/lib/time";
+import { clockTime, dayAndTime, longDate } from "@/lib/time";
 import { simulatorEnabled } from "@/lib/dev-simulator";
 
 export const metadata: Metadata = { title: "You", robots: { index: false } };
@@ -86,16 +87,25 @@ export default async function SubjectPage() {
   if (covenant.status === "PENDING") {
     return (
       <Shell active="/subject" showSimulator={simulatorEnabled()}>
-        <div className="rise max-w-prose">
-          <Eyebrow>Waiting</Eyebrow>
-          <h1 className="mt-5 font-serif text-3xl">He has not signed yet.</h1>
-          <p className="mt-4 text-sm text-muted">
-            Nothing is being recorded and no device can register until he does. Send him this link if he did not
-            get the email:
-          </p>
-          <p className="mt-4 break-all border border-border bg-surface p-4 text-xs text-steel">
-            {inviteUrl(covenant.inviteToken)}
-          </p>
+        <div className="rise max-w-prose space-y-10">
+          <div>
+            <Eyebrow>Waiting</Eyebrow>
+            <h1 className="mt-5 font-serif text-3xl">He has not signed yet.</h1>
+            <p className="mt-4 text-sm text-muted">
+              Nothing is being recorded and no device can register until he does. That is the point — one
+              man&apos;s consent is not a covenant.
+            </p>
+            <p className="mt-3 text-sm text-muted">
+              The invitation expires on {longDate(covenant.inviteExpiresAt)}.
+            </p>
+          </div>
+
+          <InvitePanel
+            covenantId={covenant.id}
+            inviteEmail={covenant.inviteEmail}
+            inviteUrl={inviteUrl(covenant.inviteToken)}
+            sent={Boolean(covenant.inviteSentAt)}
+          />
         </div>
       </Shell>
     );

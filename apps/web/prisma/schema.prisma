@@ -190,9 +190,13 @@ model Covenant {
   revokedBy   ActorRole?
 
   /// Single-use invitation token for /covenant/accept/[token].
-  inviteToken     String   @unique
+  inviteToken     String    @unique
   inviteEmail     String?
   inviteExpiresAt DateTime
+  /// When the invitation was last successfully handed to a mail transport.
+  /// Null means it was never delivered — the subject is told so plainly, and
+  /// given the link to send himself, rather than left assuming it arrived.
+  inviteSentAt    DateTime?
 
   subject User  @relation("SubjectCovenants", fields: [subjectId], references: [id], onDelete: Cascade)
   ally    User? @relation("AllyCovenants", fields: [allyId], references: [id], onDelete: SetNull)

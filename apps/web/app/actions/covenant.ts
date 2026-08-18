@@ -19,6 +19,7 @@ import {
   declineCovenant,
   displayName,
   issuePairingCode,
+  resendInvite,
   revokeCovenant,
   sendInvite,
   subjectCovenant,
@@ -48,6 +49,29 @@ export async function createCovenantAction(_prev: ActionState, formData: FormDat
 
   revalidatePath("/subject");
   redirect("/subject");
+}
+
+/**
+ * Send the invitation again.
+ *
+ * Same token, so an invitation already sitting in an inbox keeps working.
+ */
+export async function resendInviteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const userId = await currentUserId();
+  if (!userId) return { error: "Sign in first." };
+
+  try {
+    const delivered = await resendInvite({
+      covenantId: String(formData.get("covenantId") ?? ""),
+      subjectId: userId,
+    });
+    revalidatePath("/subject");
+    return delivered
+      ? { ok: true }
+      : { error: "It could not be sent. Send him the link below yourself." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not send it." };
+  }
 }
 
 export async function acceptCovenantAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

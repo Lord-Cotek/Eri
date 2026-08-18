@@ -341,6 +341,45 @@ migrated production database is not.
 `scripts/migrate.mjs` also loads `.env` itself, since wrapping the Prisma CLI
 lost the automatic loading it used to do. Real environment variables win.
 
+### 22. The invitation was never sent to anyone without an account
+
+`sendInvite` looked the invited address up as a `User` and returned early when
+it found nothing:
+
+```ts
+const user = await prisma.user.findUnique({ where: { email: covenant.inviteEmail } });
+if (!user) return; // He is invited by link; there is nobody to notify in-app yet.
+```
+
+The comment was true and the code was wrong. An ally who has never heard of Ẹ̀rí
+is the **normal** case for a first invitation — being invited is how most men
+will encounter it — so that branch was the one that mattered, and it sent
+nothing at all. The subject was left looking at a waiting page with no way to
+tell that nothing had happened.
+
+Two paths now. An existing user gets `notify`, which writes an in-app record and
+emails him. Everyone else is emailed directly; there is no user to attach a
+record to, and the link asks him to sign in, which creates the account.
+
+Three things follow from it:
+
+- **`Covenant.inviteSentAt`** records when a transport actually accepted the
+  message. `notify` and `sendInvite` return whether it was delivered rather than
+  `void`, so this is a fact rather than an assumption.
+- **The waiting page says who was invited and whether it sent.** Waiting on an
+  invitation is the one moment in this product where a man is waiting on
+  something he cannot see, and silence there is ambiguous between "not yet" and
+  "never arrived". It now says which, shows the address, and offers the link.
+- **`resendInvite`** re-sends on the same token, so an invitation already in
+  somebody's inbox keeps working — a second email that invalidated the first
+  would be a trap for the man who finally gets round to opening the older one.
+  An expired invitation is extended rather than refused.
+
+The invitation copy was also rewritten. It was addressed to someone who already
+knew what Ẹ̀rí was; it now says what being an ally means, that he will never be
+shown what the subject saw, that he may decline, and that the link will sign him
+in without needing an account first.
+
 ---
 
 ## Things left open on purpose

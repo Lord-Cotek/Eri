@@ -54,8 +54,12 @@ export type NotifyInput = {
  * The in-app record is written first and is the source of truth — email is
  * best-effort. A man is never left without the record because a mail server
  * was down.
+ *
+ * Returns whether a mail transport accepted the message. Most callers ignore
+ * it; the invitation does not, because a subject waiting on an invitation that
+ * silently failed is worse off than one told it failed.
  */
-export async function notify(input: NotifyInput): Promise<void> {
+export async function notify(input: NotifyInput): Promise<boolean> {
   const db = input.db ?? prisma;
 
   const record = await db.notification.create({
@@ -70,12 +74,13 @@ export async function notify(input: NotifyInput): Promise<void> {
   });
 
   const user = await db.user.findUnique({ where: { id: input.userId }, select: { email: true } });
-  if (!user?.email) return;
+  if (!user?.email) return false;
 
   const sent = await sendMail({ to: user.email, subject: input.subject ?? "Ẹ̀rí", text: input.body });
   if (sent) {
     await db.notification.update({ where: { id: record.id }, data: { emailedAt: new Date() } });
   }
+  return sent;
 }
 
 /* ------------------------------------------------------------------ */
@@ -118,13 +123,24 @@ export const COPY = {
     ].join("\n");
   },
 
+  /**
+   * Usually the first thing an ally ever reads about Ẹ̀rí, and often from
+   * someone who has never heard of it. It has to say what he is being asked
+   * for, and what will happen when he opens the link.
+   */
   covenantInvited(subjectName: string, url: string): string {
     return [
       `${subjectName} has asked you to be his ally.`,
       "",
-      "He installed this on himself and he chose you. Read the terms before you sign — being an ally asks something of you.",
+      "Ẹ̀rí is an accountability covenant between two men. He installed it on himself, and he chose you.",
+      "",
+      "Being an ally means agreeing to be told things — when he came forward himself, when he did not, and when a device goes quiet. You will never be shown what he saw, because nobody has it.",
+      "",
+      "Read the terms before you sign. You can decline, and he will simply be told that you did.",
       "",
       url,
+      "",
+      "The link will ask for your email and sign you in. You do not need an account first.",
     ].join("\n");
   },
 

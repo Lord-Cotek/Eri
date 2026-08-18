@@ -20,6 +20,7 @@ import { GRACE_WINDOW_DEFAULT_MINUTES, GRACE_WINDOW_MAX_MINUTES, GRACE_WINDOW_MI
 
 import { prisma } from "@/lib/prisma";
 import { COPY, notify } from "@/lib/notify";
+import { sendMail } from "@/lib/mailer";
 import { siteUrl } from "@/lib/env";
 
 /**
@@ -81,18 +82,80 @@ export function inviteUrl(token: string): string {
   return `${siteUrl()}/covenant/accept/${token}`;
 }
 
-export async function sendInvite(covenant: Covenant, subjectName: string): Promise<void> {
-  if (!covenant.inviteEmail) return;
-  const user = await prisma.user.findUnique({ where: { email: covenant.inviteEmail }, select: { id: true } });
-  if (!user) return; // He is invited by link; there is nobody to notify in-app yet.
+/**
+ * Send the invitation.
+ *
+ * The ally usually does **not** have an account yet — being invited is how most
+ * men will first hear of Ẹ̀rí. So there are two paths, and the one for a
+ * stranger is the common one:
+ *
+ *   - He already has an account → `notify`, which writes an in-app record and
+ *     emails him.
+ *   - He does not → email him directly. There is no user to attach a record to,
+ *     and the link will ask him to sign in, which creates the account.
+ *
+ * Returns whether a mail transport accepted it. The subject is told the truth
+ * either way; an invitation that silently failed is worse than one that
+ * obviously did, because he waits on it.
+ */
+export async function sendInvite(covenant: Covenant, subjectName: string): Promise<boolean> {
+  if (!covenant.inviteEmail) return false;
 
-  await notify({
-    userId: user.id,
-    kind: "COVENANT_INVITED",
-    body: COPY.covenantInvited(subjectName, inviteUrl(covenant.inviteToken)),
-    covenantId: covenant.id,
-    subject: "Ẹ̀rí — you have been asked to be an ally",
+  const body = COPY.covenantInvited(subjectName, inviteUrl(covenant.inviteToken));
+  const subject = "Ẹ̀rí — you have been asked to be an ally";
+
+  const existing = await prisma.user.findUnique({
+    where: { email: covenant.inviteEmail },
+    select: { id: true },
   });
+
+  const delivered = existing
+    ? await notify({
+        userId: existing.id,
+        kind: "COVENANT_INVITED",
+        body,
+        covenantId: covenant.id,
+        subject,
+      })
+    : await sendMail({ to: covenant.inviteEmail, subject, text: body });
+
+  if (delivered) {
+    await prisma.covenant.update({
+      where: { id: covenant.id },
+      data: { inviteSentAt: new Date() },
+    });
+  }
+
+  return delivered;
+}
+
+/**
+ * Re-send a pending invitation.
+ *
+ * Same token, so an invitation already in someone's inbox keeps working — a
+ * second email that invalidates the first would be a trap for the man who
+ * finally gets round to opening the older one.
+ */
+export async function resendInvite(input: { covenantId: string; subjectId: string }): Promise<boolean> {
+  const covenant = await prisma.covenant.findUnique({
+    where: { id: input.covenantId },
+    include: { subject: { select: { name: true, email: true } } },
+  });
+
+  if (!covenant || covenant.subjectId !== input.subjectId) throw new Error("That is not your covenant.");
+  if (covenant.status !== "PENDING") throw new Error("That invitation has already been settled.");
+  if (!covenant.inviteEmail) throw new Error("There is no address to send it to.");
+
+  if (covenant.inviteExpiresAt < new Date()) {
+    // Extend rather than refuse. He is trying to do the right thing late, and
+    // making him start the covenant again for that would be petty.
+    await prisma.covenant.update({
+      where: { id: covenant.id },
+      data: { inviteExpiresAt: new Date(Date.now() + INVITE_TTL_MS) },
+    });
+  }
+
+  return sendInvite(covenant, displayName(covenant.subject));
 }
 
 /* ------------------------------------------------------------------ */
