@@ -45,8 +45,11 @@ already been delivered into this repository, so it is wired in per its own
 - `web/HEAD-SNIPPET.html` → expressed as `metadata` in `app/layout.tsx`
 - `react/EriMark.tsx` → `components/ui/EriMark.tsx`
 
-The delivered kit stays at `/public/eri-brand-v1/` as the source of truth;
-`apps/web/public/brand/README.md` records the mapping.
+The stray `/public/` at the repo root — where the kit was originally delivered
+— has since been removed. `apps/web/public/brand/` is now the only copy of the
+served assets, and the brand guide moved to `docs/BRAND.md` rather than being
+deleted with it. Everything else in that directory was either already wired in
+or is recoverable from git history.
 
 `app/icon.tsx`, `app/apple-icon.tsx` and `app/opengraph-image.tsx` were
 **deliberately not created**, per BRAND.md's warning: the App Router gives those
@@ -181,6 +184,68 @@ gets unmounted the moment the server revalidates:
   "you are not in a covenant" with no confirmation that the ally was notified —
   the one condition he agreed to. Now shown via `endedCovenant()`.
 
+### 16. Hardening after the first review
+
+Four changes made after the phase-1 build, each closing a gap rather than
+adding a feature.
+
+**`weekRhythm()` counts resolved events only, and `generateDigest` refuses to
+run on an unsettled week.** The digest is written for the ally, so it must not
+be built from anything the ally may not see. Previously a PENDING event was
+counted, which meant a digest could reach him saying "2 events, he came forward
+on 1" while the second window was still open and the man still had his chance to
+speak — the one thing the grace window exists to prevent. `weekRhythm` now
+filters on `RESOLVED_STATES` in the query, and `weekHasOpenWindow()` makes the
+generator wait. Waiting costs nothing: the sweep runs every ten minutes and
+picks the week up as soon as the last window closes.
+
+**`Device.covenantId` is bound at registration and matched on thereafter.**
+`authenticateDevice` used to re-derive the covenant from `subjectId`, taking the
+most recent ACTIVE or REVOKED one. A man who ended one covenant and started
+another would have had his old device silently adopted by the new one, and its
+events reported to an ally who never agreed to receive them. The covenant is now
+recorded on the device inside the registration transaction and looked up by id.
+The same fix was applied to the silence sweep, and revocation now retires
+devices by `covenantId` rather than `subjectId`, so ending one covenant cannot
+retire another's devices.
+
+**The crisis line is required, with no default.** It used to fall back to UK
+Samaritans. That was worse than no fallback: a deployment serving another
+country would have silently told a man in trouble to call a line that cannot
+help him, and nothing would have looked wrong. `CRISIS_LINE_NAME` and
+`CRISIS_LINE_CONTACT` are now required in every environment — development, build
+and runtime — and `lib/env.ts` throws without them. Other production
+requirements (`DATABASE_URL`, `NEXTAUTH_SECRET`, `CRON_SECRET`, `EMAIL_SERVER`
+and the two URLs) are checked when a production server starts, but not during
+`next build`, since a build machine legitimately has no database or SMTP.
+
+**The stray `/public/` at the repo root is gone.** See § 2.
+
+### 17. Vercel applies migrations; nothing is run by hand
+
+The schema is now under `prisma/migrations/`, and `apps/web`'s build script is:
+
+```
+npm run build --workspace @eri/protocol --prefix ../..
+prisma generate
+prisma migrate deploy
+next build
+```
+
+`migrate deploy` is the production-safe command — it applies what is committed,
+never generates, never prompts, never resets. A failed migration fails the build
+and the previous deployment stays live.
+
+The protocol package is rebuilt in the build step rather than relied on from the
+root `postinstall`, because Vercel's install cache can skip `postinstall` on a
+warm build.
+
+The root `npm run build` calls `build:local` for the web app, which omits
+`migrate deploy` — the local and CI path typechecks without touching a database.
+
+Vercel's Root Directory must be `apps/web`, so `vercel.json` moved there; Vercel
+reads it relative to the Root Directory. Full walkthrough in `docs/DEPLOY.md`.
+
 ---
 
 ## Things left open on purpose
@@ -220,7 +285,8 @@ npm run start --workspace @eri/web        # in one shell
 npm run acceptance                        # in another
 ```
 
-Last run: **47 passed, 0 failed.**
+Last run: **52 passed, 0 failed**, against a database built by
+`prisma migrate deploy` from empty.
 
 | # | Criterion | Result |
 |---|---|---|
@@ -247,4 +313,6 @@ happening in the half hour before it?"* — but the generated path has not been
 exercised against the live API. Set the key and re-run to close that gap.
 
 Beyond the criteria, the run also asserts that a forged signature is rejected
-with `BAD_SIGNATURE` and a stale timestamp with `CLOCK_SKEW`.
+with `BAD_SIGNATURE`, a stale timestamp with `CLOCK_SKEW`, that no digest is
+written while a window in that week is still open (and that one appears as soon
+as it closes), and that a sentinel cannot report into a covenant that has ended.

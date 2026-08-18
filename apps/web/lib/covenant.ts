@@ -210,10 +210,12 @@ export async function revokeCovenant(input: { covenantId: string; actorId: strin
       data: { status: "REVOKED", revokedAt: now, revokedBy: role },
     });
 
-    // Retire the devices too. A sentinel that keeps reporting into an ended
-    // covenant is reporting on a man who withdrew his consent.
+    // Retire this covenant's devices. A sentinel that keeps reporting into an
+    // ended covenant is reporting on a man who withdrew his consent. Scoped by
+    // `covenantId`, not `subjectId`, so ending one covenant cannot retire the
+    // devices of another.
     await tx.device.updateMany({
-      where: { subjectId: covenant.subjectId, status: { not: "RETIRED" } },
+      where: { covenantId: covenant.id, status: { not: "RETIRED" } },
       data: { status: "RETIRED", retiredAt: now },
     });
 

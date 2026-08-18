@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Playfair_Display } from "next/font/google";
+// Throws when required configuration is missing — including the crisis line.
+// Imported here as well as in instrumentation.ts so that `next build`, which
+// prerenders this layout, fails rather than shipping a broken deployment.
+import "@/lib/env";
 import "./globals.css";
 
 const display = Playfair_Display({

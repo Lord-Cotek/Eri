@@ -11,6 +11,8 @@
  * something we are not willing to risk to save a screen.
  */
 
+import { crisisResources } from "@/lib/env";
+
 const CRISIS_PATTERNS: RegExp[] = [
   /\bkill(ing)?\s+my ?self\b/i,
   /\bend(ing)?\s+(it|my life|things)\b/i,
@@ -29,12 +31,7 @@ const CRISIS_PATTERNS: RegExp[] = [
 
 export type CrisisCheck = { crisis: false } | { crisis: true; response: string };
 
-export function crisisResources(): { name: string; contact: string } {
-  return {
-    name: process.env.CRISIS_LINE_NAME ?? "Samaritans",
-    contact: process.env.CRISIS_LINE_CONTACT ?? "116 123 (UK, 24 hours)",
-  };
-}
+export { crisisResources };
 
 /**
  * The fixed response. Not generated, so it cannot drift, be argued with, or be

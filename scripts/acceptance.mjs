@@ -44,6 +44,16 @@ function sim(args) {
   });
 }
 
+/** Run eri-sim expecting it to fail, and return what it said. */
+function simExpectingFailure(args) {
+  try {
+    sim(args);
+    return null;
+  } catch (error) {
+    return `${error.stdout ?? ""}${error.stderr ?? ""}`;
+  }
+}
+
 /** Create a user and a database session, and return the cookie that signs them in. */
 async function signedInUser(email, name) {
   const user = await prisma.user.create({ data: { email, name, emailVerified: new Date() } });
@@ -281,6 +291,46 @@ async function main() {
   const allyWithDigest = await allyPage.content();
   check("the question is the top of the ally's page", allyWithDigest.includes(digest.questionText));
 
+  /* ── The digest waits for an open window ────────────────────────── */
+  heading("Digest · no digest is written while a window in that week is still open");
+
+  await prisma.digest.deleteMany({ where: { covenantId: covenant.id } });
+
+  sim(["fire", "--category", "SUGGESTIVE", "--at", "23:40"]);
+  const straggler = await prisma.event.findFirst({
+    where: { covenantId: covenant.id, state: "PENDING" },
+    orderBy: { receivedAt: "desc" },
+  });
+
+  // Date it into the digest week but leave its window open.
+  await prisma.event.update({
+    where: { id: straggler.id },
+    data: { occurredAt: lastWeek, windowExpiresAt: new Date(Date.now() + 3_600_000) },
+  });
+
+  const heldSweep = await sweep();
+  check("sweep writes no digest while the week has an open window", heldSweep.digests === 0);
+  check(
+    "no digest row exists for that week",
+    (await prisma.digest.count({ where: { covenantId: covenant.id } })) === 0,
+  );
+
+  // Close it. The same sweep lapses the window first, then writes the digest.
+  await prisma.event.update({
+    where: { id: straggler.id },
+    data: { windowExpiresAt: new Date(Date.now() - 1000) },
+  });
+
+  const releasedSweep = await sweep();
+  check("once the window closes the digest is written", releasedSweep.digests >= 1);
+
+  const settledDigest = await prisma.digest.findFirst({ where: { covenantId: covenant.id } });
+  check(
+    "the digest counts the now-resolved event",
+    /3 events/.test(settledDigest?.summaryText ?? ""),
+    settledDigest?.summaryText,
+  );
+
   /* ── 6. Revoking notifies the ally immediately ──────────────────── */
   heading("6 · Revoking the covenant notifies the ally immediately");
 
@@ -308,6 +358,13 @@ async function main() {
 
   await allyPage.goto("/ally");
   check("ally page states it ended", (await allyPage.content()).includes("ended the covenant"));
+
+  const afterRevoke = simExpectingFailure(["fire", "--category", "EXPLICIT_IMAGE"]);
+  check(
+    "the sentinel can no longer report into the ended covenant",
+    afterRevoke !== null && /DEVICE_RETIRED|COVENANT_INACTIVE/.test(afterRevoke),
+    afterRevoke?.trim().split("\n").pop(),
+  );
 
   /* ── Protocol hardening ─────────────────────────────────────────── */
   heading("Protocol · replay, skew and signature rejection");

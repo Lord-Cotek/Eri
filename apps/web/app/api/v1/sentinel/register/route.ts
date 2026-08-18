@@ -65,6 +65,9 @@ export async function POST(request: NextRequest) {
     const created = await tx.device.create({
       data: {
         subjectId: pairing.covenant.subjectId,
+        // Bound here, once, to the covenant that minted this code — and never
+        // re-derived afterwards. See the Device model comment.
+        covenantId: pairing.covenant.id,
         platform: envelope.platform,
         label: envelope.label,
         publicKey: envelope.publicKey,

@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    // Runs instrumentation.ts at server start, which validates required
+    // configuration and refuses to boot without it.
+    instrumentationHook: true,
+  },
   eslint: {
     // Lint is a separate step (`npm run lint`); a lint warning should not fail
     // the typecheck build that acceptance criterion 9 turns on.

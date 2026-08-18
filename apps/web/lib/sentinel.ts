@@ -131,7 +131,7 @@ export async function authenticateDevice(input: {
 }): Promise<{ ok: true; device: AuthedDevice } | { ok: false; response: NextResponse }> {
   const device = await prisma.device.findUnique({
     where: { id: input.deviceId },
-    select: { id: true, subjectId: true, label: true, status: true, publicKey: true },
+    select: { id: true, subjectId: true, covenantId: true, label: true, status: true, publicKey: true },
   });
 
   // A wrong device id and a wrong signature return the same thing, so an
@@ -148,13 +148,16 @@ export async function authenticateDevice(input: {
     return { ok: false, response: protocolError("DEVICE_RETIRED", "This device has been retired.") };
   }
 
-  const covenant = await prisma.covenant.findFirst({
-    where: { subjectId: device.subjectId, status: { in: ["ACTIVE", "REVOKED"] } },
-    orderBy: { createdAt: "desc" },
+  // The covenant this device was bound to at registration — looked up by id,
+  // never re-derived from `subjectId`. A man who ends one covenant and starts
+  // another must not have his old device adopted by the new one; its events
+  // would reach an ally who never agreed to receive them.
+  const covenant = await prisma.covenant.findUnique({
+    where: { id: device.covenantId },
     select: { id: true, status: true, graceWindowMinutes: true },
   });
 
-  if (!covenant) {
+  if (!covenant || covenant.status === "PENDING" || covenant.status === "DECLINED") {
     return { ok: false, response: protocolError("COVENANT_INACTIVE", "No covenant for this device.") };
   }
 

@@ -274,8 +274,15 @@ export async function weekRhythm(covenantId: string, subjectId: string, week?: D
   const start = week ?? weekStart(new Date());
   const end = addDays(start, 7);
 
+  // Resolved events only, filtered in the query.
+  //
+  // A digest is written for the ally, so it must not be built from anything the
+  // ally may not see. A PENDING event counted here would surface in the ally's
+  // digest — "2 events, he came forward on 1" — while the second window was
+  // still open and the subject still had his chance to speak. That is the one
+  // thing the grace window exists to prevent. See docs/PRIVACY-INVARIANTS.md § 4.
   const events = await prisma.event.findMany({
-    where: { covenantId, occurredAt: { gte: start, lt: end } },
+    where: { covenantId, occurredAt: { gte: start, lt: end }, state: { in: [...RESOLVED_STATES] } },
     select: { occurredAt: true, state: true },
   });
 
@@ -301,6 +308,20 @@ export async function weekRhythm(covenantId: string, subjectId: string, week?: D
     disclosureStreakDays: await disclosureStreakDays(covenantId),
     silenceHours: Math.round(silenceMs / 3_600_000),
   };
+}
+
+/**
+ * Is any event in this week still inside its grace window?
+ *
+ * `weekRhythm` excludes pending events, so a digest generated now would be
+ * accurate about what it counted and wrong about the week. Generating it later
+ * costs nothing; generating it early spends a man's window for him.
+ */
+export async function weekHasOpenWindow(covenantId: string, week: Date): Promise<boolean> {
+  const open = await prisma.event.count({
+    where: { covenantId, occurredAt: { gte: week, lt: addDays(week, 7) }, state: "PENDING" },
+  });
+  return open > 0;
 }
 
 /** Devices that have gone quiet past the ALERT threshold. */

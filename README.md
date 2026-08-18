@@ -68,8 +68,7 @@ eri/
   apps/android-sentinel/    stub
   packages/protocol/        event schema, categories, state machine, signing
   packages/simulator/       eri-sim — the simulated sentinel
-  docs/                     privacy invariants, protocol, decisions
-  public/eri-brand-v1/      the delivered brand kit
+  docs/                     privacy invariants, protocol, brand, decisions
   scripts/                  acceptance run, privacy check
 ```
 
@@ -83,10 +82,15 @@ eri/
 ```bash
 npm install                          # builds the packages, generates Prisma
 cp apps/web/.env.example apps/web/.env
-# fill in DATABASE_URL and NEXTAUTH_SECRET at minimum
-npm run db:push
+# DATABASE_URL, NEXTAUTH_SECRET, and the two CRISIS_LINE_* values at minimum
+npm run migrate:deploy --workspace @eri/web
 npm run dev
 ```
+
+**`CRISIS_LINE_NAME` and `CRISIS_LINE_CONTACT` are required in every
+environment and have no default.** The app refuses to start without them — in
+development, at build, and at runtime. A deployment that cannot name a real
+person to call should not tell a man in crisis to call nobody.
 
 With no `EMAIL_SERVER` configured, sign-in links and notification emails are
 printed to the server console instead of being sent. That is development-only
@@ -120,7 +124,7 @@ actions. It 404s in production.
 
 ### The sweep
 
-`/api/cron/sweep`, every 10 minutes via Vercel Cron (see `vercel.json`). It
+`/api/cron/sweep`, every 10 minutes via Vercel Cron (see `apps/web/vercel.json`). It
 lapses expired windows and tells the allies, opens and escalates silences,
 generates weekly digests, and prunes spent nonces. Authorised by
 `CRON_SECRET`; with no secret configured the endpoint is closed, not open.
@@ -170,6 +174,12 @@ server, driving the real UI in a browser and the real CLI. Last run: **47
 passed, 0 failed**. See [`docs/DECISIONS.md`](docs/DECISIONS.md) for the
 results table and the one caveat.
 
+## Deploying
+
+Vercel, Root Directory `apps/web`. Migrations are applied by the build
+(`prisma migrate deploy`), so nothing needs running by hand. Full walkthrough
+and the environment-variable table: [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
 ## Documents
 
 - [`docs/PRIVACY-INVARIANTS.md`](docs/PRIVACY-INVARIANTS.md) — what may never
@@ -178,6 +188,9 @@ results table and the one caveat.
   Kotlin work is a transcription job
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — everything the brief left open, and
   what was decided instead
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — Vercel setup, migrations on deploy, and
+  every environment variable
+- [`docs/BRAND.md`](docs/BRAND.md) — the mark, the palette, the type, the voice
 
 ## Out of scope for phase 1
 

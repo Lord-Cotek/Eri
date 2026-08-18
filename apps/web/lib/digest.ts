@@ -16,7 +16,7 @@ import type { Digest } from "@prisma/client";
 import { plainWeekSummary, weeklyQuestion } from "@/lib/elerii";
 import { COPY, notify } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
-import { weekRhythm } from "@/lib/queries";
+import { weekHasOpenWindow, weekRhythm } from "@/lib/queries";
 import { addDays, weekStart } from "@/lib/time";
 
 /**
@@ -35,6 +35,15 @@ export async function generateDigest(input: {
     where: { covenantId_weekStart: { covenantId: input.covenantId, weekStart: input.week } },
   });
   if (existing) return null;
+
+  // Refuse to write a digest while any window in that week is still open.
+  //
+  // `weekRhythm` counts resolved events only, so a digest written now would be
+  // accurate about what it counted and wrong about the week — and it would
+  // reach the ally while the subject still had his chance to speak. Waiting
+  // costs nothing: the sweep runs every ten minutes and will pick this week up
+  // as soon as the last window closes.
+  if (await weekHasOpenWindow(input.covenantId, input.week)) return null;
 
   const rhythm = await weekRhythm(input.covenantId, input.subjectId, input.week);
   const question = await weeklyQuestion(rhythm);

@@ -1,11 +1,13 @@
 # Served brand assets
 
-These are a copy of the delivered brand kit, placed where Next.js can serve
-them. The kit as delivered is at `/public/eri-brand-v1/eri-brand/` in the repo
-root, and that remains the source of truth — regenerate these from there rather
-than editing them in place.
+These are the delivered brand assets, in the one place Next.js can serve them
+from. This directory is now the source of truth — the delivered kit used to sit
+at `/public/` in the repo root and has been removed, since carrying two copies
+of every icon invites them to diverge.
 
-| Here | From |
+The rules that govern these assets are in [`docs/BRAND.md`](../../../../docs/BRAND.md).
+
+| Here | Was |
 |---|---|
 | `icons/` | `eri-brand/icons/` |
 | `social/` | `eri-brand/social/` |
@@ -13,11 +15,13 @@ than editing them in place.
 | `../favicon.ico` | `eri-brand/web/favicon.ico` |
 | `../site.webmanifest` | `eri-brand/web/site.webmanifest` |
 
-The rest of the kit is wired in rather than copied:
+The rest of the kit was wired in rather than copied, and the originals are in
+git history if they are ever needed again:
 
 - `eri-brand/web/tokens.css` → merged into `app/globals.css`
 - `eri-brand/web/HEAD-SNIPPET.html` → expressed as `metadata` in `app/layout.tsx`
 - `eri-brand/react/EriMark.tsx` → `components/ui/EriMark.tsx`
+- `eri-brand/BRAND.md` → `docs/BRAND.md`
 
 **Do not add `app/icon.tsx`, `app/apple-icon.tsx` or `app/opengraph-image.tsx`.**
 The App Router gives those generators precedence over static files, so these

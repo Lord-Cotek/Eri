@@ -198,6 +198,7 @@ model Covenant {
   ally    User? @relation("AllyCovenants", fields: [allyId], references: [id], onDelete: SetNull)
 
   events        Event[]
+  devices       Device[]
   digests       Digest[]
   pairingCodes  PairingCode[]
   notifications Notification[]
@@ -216,11 +217,18 @@ model Covenant {
 /// `publicKey` is the raw 32-byte Ed25519 key, base64. The private half never
 /// leaves the device, so the server can verify that an event came from his
 /// phone but can never manufacture one.
+///
+/// `covenantId` is bound once, inside the registration transaction, to the
+/// covenant that minted the pairing code. It is never re-derived from
+/// `subjectId` afterwards: a man who ends one covenant and starts another
+/// would otherwise have his old device silently adopted by the new one, and
+/// its events would be reported to an ally who never agreed to receive them.
 model Device {
-  id        String         @id @default(cuid())
-  subjectId String
-  platform  DevicePlatform
-  label     String
+  id         String         @id @default(cuid())
+  subjectId  String
+  covenantId String
+  platform   DevicePlatform
+  label      String
 
   publicKey         String
   sentinelVersion   String
@@ -232,11 +240,13 @@ model Device {
   retiredAt       DateTime?
 
   subject     User         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  covenant    Covenant     @relation(fields: [covenantId], references: [id], onDelete: Cascade)
   events      Event[]
   antecedents Antecedent[]
   silences    Silence[]
 
   @@index([subjectId])
+  @@index([covenantId])
   @@index([status])
   @@index([lastHeartbeatAt])
 }

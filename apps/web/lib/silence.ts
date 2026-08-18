@@ -29,6 +29,7 @@ export async function sweepSilences(now = new Date()): Promise<SilenceSweepResul
       id: true,
       label: true,
       subjectId: true,
+      covenantId: true,
       lastHeartbeatAt: true,
       registeredAt: true,
       silences: { where: { endedAt: null }, orderBy: { startedAt: "desc" }, take: 1 },
@@ -64,11 +65,14 @@ export async function sweepSilences(now = new Date()): Promise<SilenceSweepResul
     });
     if (!silence || silence.allyNotifiedAt) continue;
 
-    const covenant = await prisma.covenant.findFirst({
-      where: { subjectId: device.subjectId, status: "ACTIVE" },
-      select: { id: true, allyId: true },
+    // The covenant this device was bound to at registration, by id. A device
+    // belonging to an ended covenant must not raise an alert to the ally of a
+    // newer one.
+    const covenant = await prisma.covenant.findUnique({
+      where: { id: device.covenantId },
+      select: { id: true, allyId: true, status: true },
     });
-    if (!covenant?.allyId) continue;
+    if (covenant?.status !== "ACTIVE" || !covenant.allyId) continue;
 
     // Claim before notifying, so two overlapping sweeps cannot double-alert.
     const claimed = await prisma.silence.updateMany({

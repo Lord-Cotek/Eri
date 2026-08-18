@@ -8,7 +8,7 @@
     "apps/web"
   ],
   "scripts": {
-    "build": "npm run build --workspace @eri/protocol && npm run build --workspace @eri/simulator && npm run build --workspace @eri/web",
+    "build": "npm run build --workspace @eri/protocol && npm run build --workspace @eri/simulator && npm run build:local --workspace @eri/web",
     "dev": "npm run dev --workspace @eri/web",
     "start": "npm run start --workspace @eri/web",
     "lint": "npm run lint --workspace @eri/web",

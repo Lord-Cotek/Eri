@@ -80,7 +80,10 @@ web/      favicon.ico, site.webmanifest, HEAD-SNIPPET.html, tokens.css
 react/    EriMark.tsx
 ```
 
-## Dropping into the Next.js app
+## How it is wired in
+
+*Done — recorded here so the mapping is not lost. The kit was delivered as a
+standalone folder; these steps have been carried out and the folder removed.*
 
 1. Copy `icons/`, `social/`, `svg/` → `apps/web/public/brand/`.
 2. Copy `web/favicon.ico` and `web/site.webmanifest` → `apps/web/public/`.
