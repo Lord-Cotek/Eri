@@ -37,10 +37,29 @@ prisma migrate deploy                                    # apply pending migrati
 next build
 ```
 
-`prisma migrate deploy` applies everything in `apps/web/prisma/migrations/` that
-the database has not seen. It never generates a migration, never prompts, and
-never resets — it is the production-safe command. If a migration fails, the
-build fails and the previous deployment stays live.
+`scripts/migrate.mjs` wraps `prisma migrate deploy`, which applies everything in
+`apps/web/prisma/migrations/` that the database has not seen. It never generates
+a migration, never prompts, and never resets. If a migration fails, the build
+fails and the previous deployment stays live.
+
+The wrapper exists for three reasons the bare command cannot handle:
+
+1. **It finds the connection string under whatever name it has.** See
+   *Where the connection string comes from* below.
+2. **It prefers a direct connection.** DDL and advisory locks do not survive a
+   transaction-mode pooler reliably.
+3. **It leaves Preview deployments alone by default.** A Vercel build sees only
+   its own environment's variables, so a preview cannot tell whether it shares
+   Production's database. Rather than risk applying an unreviewed migration to
+   live data the moment someone opens a preview, previews skip. If previews have
+   their own database — the Neon integration can branch one per deployment — set
+   `ERI_ALLOW_PREVIEW_MIGRATE=1`.
+
+The build log names the variable and the host it migrated:
+
+```
+Applying migrations · DATABASE_URL → ep-xxx-pooler.eu-west-2.aws.neon.tech/neondb
+```
 
 The protocol package is rebuilt in the build step rather than relied upon from
 `postinstall`, because Vercel's install cache can skip `postinstall` on a warm
@@ -190,6 +209,39 @@ deployment missing them fails the build rather than shipping.
 
 `NODE_ENV` — Vercel sets it. Setting it yourself can switch off the production
 guards: the dev sign-in console fallback, and the 404 on `/simulator`.
+
+### Where the connection string comes from
+
+The first deploy failed here, and it is worth knowing why.
+
+`prisma migrate deploy` reads `DATABASE_URL` from the build environment. Two
+things commonly mean it is not there:
+
+- **The Neon integration names its variables after the store**, not the app —
+  `eri_DATABASE_URL`, `eri_POSTGRES_PRISMA_URL`. The plain `DATABASE_URL` may
+  simply not exist.
+- **Vercel does not expose variables marked Sensitive to the build step.** They
+  are available at runtime only. A `DATABASE_URL` created as Sensitive is
+  invisible to a migration.
+
+`lib/database-url.mjs` resolves it from a list rather than depending on one
+name, and both the migration script and the app read that same list — so the
+thing that migrates the database and the thing that queries it cannot end up
+pointed at different databases.
+
+Order of preference:
+
+| For | Tried in order |
+|---|---|
+| Migrations (direct) | `DIRECT_URL`, `DATABASE_URL_UNPOOLED`, `POSTGRES_URL_NON_POOLING`, then the pooled list |
+| Runtime (pooled) | `DATABASE_URL`, `POSTGRES_PRISMA_URL`, `POSTGRES_URL` |
+
+Any variable whose name *ends* in one of those is also matched, which is what
+makes `eri_DATABASE_URL` work without configuring anything.
+
+**If your deploy still cannot find it**, the simplest fix is a plain,
+non-Sensitive `DATABASE_URL` set to the same value as `eri_DATABASE_URL`. The
+build failure lists every name it looked for.
 
 ### Variables the Neon integration adds
 

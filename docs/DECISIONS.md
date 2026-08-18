@@ -287,6 +287,60 @@ built against the wrong origin is one a man cannot accept.
 The literal `process.env.NEXT_PUBLIC_SITE_URL` reference is kept inside
 `siteUrl()`: Next only inlines `NEXT_PUBLIC_*` where it appears literally.
 
+### 20. The connection string is resolved, not assumed
+
+The first Vercel deploy failed at `prisma migrate deploy` with *"Environment
+variable not found: DATABASE_URL"* — after `prisma generate` had just succeeded,
+because generate does not need the URL resolved and deploy does.
+
+Two things commonly cause it, and both are outside the repo's control:
+
+- The Neon integration names its variables after the **store**, not the app:
+  `eri_DATABASE_URL`, `eri_POSTGRES_PRISMA_URL`. A plain `DATABASE_URL` may not
+  exist at all.
+- Vercel **withholds variables marked Sensitive from the build step**. They are
+  available at runtime only, so a Sensitive `DATABASE_URL` is invisible to a
+  migration.
+
+Rather than tell the operator to go find the right toggle, `lib/database-url.mjs`
+resolves the string from a list of names — and matches any variable *ending* in
+one of them, which is what makes an integration prefix work with no
+configuration. It reports which name it used.
+
+`lib/prisma.ts` reads the same resolver and passes the URL to `PrismaClient`
+explicitly rather than leaving it to `env("DATABASE_URL")` in the schema. One
+resolver, so the thing that migrates the database and the thing that queries it
+cannot end up pointed at different databases.
+
+Migrations prefer a **direct** connection (`DIRECT_URL`, `*_DATABASE_URL_UNPOOLED`,
+`*_POSTGRES_URL_NON_POOLING`) and fall back to pooled; DDL and advisory locks do
+not survive a transaction-mode pooler reliably. Runtime prefers pooled.
+
+Plain JavaScript with JSDoc types, not TypeScript: the build script runs before
+anything is compiled and must import it directly, and one file beats two that
+drift.
+
+### 21. Preview deployments do not migrate
+
+Migrating from the build introduced a hazard worth naming: a branch carrying a
+new migration would apply it the moment somebody opened its preview — to
+production's data, if preview and production share a database.
+
+A Vercel build only ever sees its own environment's variables, so a preview
+**cannot** determine whether its database is production's. My first attempt
+compared the migration URL against the runtime URL, which is nonsense — those
+are the direct and pooled strings for the same database, so the guard fired on
+every preview and no preview could ever migrate its own branch database.
+
+The rule is now explicit rather than inferred: production migrates, preview does
+not unless `ERI_ALLOW_PREVIEW_MIGRATE=1`, and anything not on Vercel migrates.
+The cost is that a preview of a schema change runs against the old schema and
+may error. That is the right way round — a broken preview is recoverable, a
+migrated production database is not.
+
+`scripts/migrate.mjs` also loads `.env` itself, since wrapping the Prisma CLI
+lost the automatic loading it used to do. Real environment variables win.
+
 ---
 
 ## Things left open on purpose

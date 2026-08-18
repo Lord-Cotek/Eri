@@ -16,6 +16,8 @@
  * Ẹ̀rí cannot name a real person to call, it does not run.
  */
 
+import { resolveRuntimeUrl } from "@/lib/database-url.mjs";
+
 type Requirement = { key: string; why: string };
 
 const REQUIRED_ALWAYS: Requirement[] = [
@@ -30,13 +32,22 @@ const REQUIRED_ALWAYS: Requirement[] = [
 ];
 
 const REQUIRED_IN_PRODUCTION: Requirement[] = [
-  { key: "DATABASE_URL", why: "the pooled Neon connection string." },
   { key: "NEXTAUTH_SECRET", why: "signs session cookies. Generate with `openssl rand -base64 32`." },
   { key: "NEXTAUTH_URL", why: "the canonical origin, e.g. https://eri.cotek.app." },
   { key: "NEXT_PUBLIC_SITE_URL", why: "used for invite links and OG metadata." },
   { key: "CRON_SECRET", why: "authorises the sweep. Without it the sweep endpoint is closed and windows never lapse." },
   { key: "EMAIL_FROM", why: "the address notifications are sent from." },
 ];
+
+/**
+ * The database is required, but the name it arrives under varies — an
+ * integration prefixes it with the store name, so `DATABASE_URL` may genuinely
+ * be absent while `eri_DATABASE_URL` is present. `lib/database-url.mjs` knows
+ * the whole list; here we only need to know whether one of them resolved.
+ */
+function databaseConfigured(): boolean {
+  return Boolean(resolveRuntimeUrl());
+}
 
 /**
  * Mail needs one transport, not both. Resend over HTTPS is preferred on
@@ -67,6 +78,14 @@ function assertEnv(): void {
   const gaps = [
     ...missing(REQUIRED_ALWAYS),
     ...(inProduction ? missing(REQUIRED_IN_PRODUCTION) : []),
+    ...(inProduction && !databaseConfigured()
+      ? [
+          {
+            key: "DATABASE_URL",
+            why: "the pooled Postgres connection string (or an integration-prefixed equivalent such as eri_DATABASE_URL).",
+          },
+        ]
+      : []),
     // One transport is enough; neither is a gap.
     ...(inProduction && missing(EMAIL_TRANSPORTS).length === EMAIL_TRANSPORTS.length
       ? [
