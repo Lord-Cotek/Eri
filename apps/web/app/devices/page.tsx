@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { HEARTBEAT_INTERVAL_MINUTES, SILENCE_ALERT_AFTER_MINUTES, SILENCE_WARNING_AFTER_MINUTES } from "@eri/protocol";
+import {
+  DEVICE_PLATFORM_LABELS,
+  HEARTBEAT_INTERVAL_MINUTES,
+  PLATFORM_CAPABILITIES,
+  silenceThresholdsFor,
+  type DevicePlatform,
+} from "@eri/protocol";
 
 import { PairingCodeButton, RetireDeviceButton } from "@/components/DeviceControls";
 import { Shell } from "@/components/Shell";
@@ -14,11 +20,15 @@ import { simulatorEnabled } from "@/lib/dev-simulator";
 export const metadata: Metadata = { title: "Devices", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-function heartbeatState(lastHeartbeatAt: Date | null, registeredAt: Date): { label: string; tone: Tone } {
-  const since = Date.now() - (lastHeartbeatAt ?? registeredAt).getTime();
-  const minutes = since / 60_000;
-  if (minutes >= SILENCE_ALERT_AFTER_MINUTES) return { label: "Silent", tone: "alert" };
-  if (minutes >= SILENCE_WARNING_AFTER_MINUTES) return { label: "Late", tone: "amber" };
+function heartbeatState(
+  platform: DevicePlatform,
+  lastHeartbeatAt: Date | null,
+  registeredAt: Date,
+): { label: string; tone: Tone } {
+  const thresholds = silenceThresholdsFor(platform);
+  const minutes = (Date.now() - (lastHeartbeatAt ?? registeredAt).getTime()) / 60_000;
+  if (minutes >= thresholds.alertAfterMinutes) return { label: "Silent", tone: "alert" };
+  if (minutes >= thresholds.warningAfterMinutes) return { label: "Late", tone: "amber" };
   return { label: "Reporting", tone: "steel" };
 }
 
@@ -36,9 +46,10 @@ export default async function DevicesPage() {
           <Eyebrow>Devices</Eyebrow>
           <h1 className="mt-5 font-serif text-3xl">Your devices, checking in.</h1>
           <p className="mt-4 text-sm text-muted">
-            Each device reports every {HEARTBEAT_INTERVAL_MINUTES} minutes. After{" "}
-            {SILENCE_WARNING_AFTER_MINUTES / 60} hour it is late, and that stays between you and this page.
-            After {SILENCE_ALERT_AFTER_MINUTES / 60} hours it is silent, and your ally is told.
+            Each device reports every {HEARTBEAT_INTERVAL_MINUTES} minutes. When one falls behind it is
+            marked late, which stays between you and this page; when it falls further behind it is silent,
+            and your ally is told. The thresholds differ by platform — iPhone is given longer, because iOS
+            schedules background work itself and a strict window would cry wolf.
           </p>
           <p className="mt-4 text-sm text-muted">
             Ẹ̀rí cannot stop you uninstalling a sentinel and does not pretend to. It can only report that a
@@ -58,7 +69,8 @@ export default async function DevicesPage() {
           ) : (
             <ul className="divide-y divide-border border border-border">
               {devices.map((device) => {
-                const state = heartbeatState(device.lastHeartbeatAt, device.registeredAt);
+                const state = heartbeatState(device.platform, device.lastHeartbeatAt, device.registeredAt);
+                const capability = PLATFORM_CAPABILITIES[device.platform];
                 const since = Date.now() - (device.lastHeartbeatAt ?? device.registeredAt).getTime();
                 return (
                   <li key={device.id} className="px-6 py-5">
@@ -70,9 +82,15 @@ export default async function DevicesPage() {
                     </div>
 
                     <p className="mt-2 text-xs text-muted">
-                      {device.platform.toLowerCase()} · sentinel {device.sentinelVersion} · classifier{" "}
-                      {device.classifierVersion}
+                      {DEVICE_PLATFORM_LABELS[device.platform]} · sentinel {device.sentinelVersion} ·
+                      classifier {device.classifierVersion}
                     </p>
+
+                    {capability.caveat && (
+                      <p className="mt-3 border-l-2 border-steel/40 pl-4 text-xs text-muted">
+                        {capability.caveat}
+                      </p>
+                    )}
 
                     <p className="mt-1 text-xs text-muted">
                       {device.lastHeartbeatAt

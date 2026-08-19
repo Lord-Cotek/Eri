@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
         publicKey: envelope.publicKey,
         sentinelVersion: envelope.sentinelVersion,
         classifierVersion: envelope.classifierVersion,
+        osVersion: envelope.osVersion ?? null,
         status: "ACTIVE",
         lastHeartbeatAt: new Date(),
       },

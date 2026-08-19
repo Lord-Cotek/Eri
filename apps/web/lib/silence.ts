@@ -12,7 +12,7 @@
 
 import "server-only";
 
-import { SILENCE_ALERT_AFTER_MINUTES, SILENCE_WARNING_AFTER_MINUTES } from "@eri/protocol";
+import { silenceThresholdsFor } from "@eri/protocol";
 
 import { COPY, notify } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
@@ -20,14 +20,12 @@ import { prisma } from "@/lib/prisma";
 export type SilenceSweepResult = { opened: number; escalated: number; allyNotified: number };
 
 export async function sweepSilences(now = new Date()): Promise<SilenceSweepResult> {
-  const warningCutoff = new Date(now.getTime() - SILENCE_WARNING_AFTER_MINUTES * 60_000);
-  const alertCutoff = new Date(now.getTime() - SILENCE_ALERT_AFTER_MINUTES * 60_000);
-
   const devices = await prisma.device.findMany({
     where: { status: { not: "RETIRED" } },
     select: {
       id: true,
       label: true,
+      platform: true,
       subjectId: true,
       covenantId: true,
       lastHeartbeatAt: true,
@@ -39,6 +37,15 @@ export async function sweepSilences(now = new Date()): Promise<SilenceSweepResul
   const result: SilenceSweepResult = { opened: 0, escalated: 0, allyNotified: 0 };
 
   for (const device of devices) {
+    // Thresholds are per-platform. iOS cannot hold a 15-minute cadence — its
+    // background refresh is scheduled by the system — so holding an iPhone to
+    // Android's window would cry wolf on a device behaving exactly as Apple
+    // intends, and an ally who learns to ignore silence alerts ignores the one
+    // that matters. See packages/protocol/src/categories.ts.
+    const thresholds = silenceThresholdsFor(device.platform);
+    const warningCutoff = new Date(now.getTime() - thresholds.warningAfterMinutes * 60_000);
+    const alertCutoff = new Date(now.getTime() - thresholds.alertAfterMinutes * 60_000);
+
     // A device that has never spoken is timed from registration, so a sentinel
     // that was installed and never ran is not invisible.
     const lastSeen = device.lastHeartbeatAt ?? device.registeredAt;

@@ -331,6 +331,30 @@ async function main() {
     settledDigest?.summaryText,
   );
 
+  // 2b — the arithmetic reconciles. `total` minus the three resolved counts used
+  // to equal the number of events still inside an open window, and both numbers
+  // were printed to the ally.
+  const summary = settledDigest?.summaryText ?? "";
+  const total = Number(/(\d+) events?/.exec(summary)?.[1] ?? "0");
+  const forward = Number(/came forward on (\d+)/.exec(summary)?.[1] ?? "0");
+  const lapsedCount = Number(/(\d+) windows? lapsed/.exec(summary)?.[1] ?? "0");
+  const contested = Number(/(\d+) contested/.exec(summary)?.[1] ?? "0");
+
+  check(
+    "digest arithmetic reconciles — no count implies an open window",
+    total === forward + lapsedCount + contested,
+    `${total} = ${forward} + ${lapsedCount} + ${contested}`,
+  );
+
+  const pendingInDigestWeek = await prisma.event.count({
+    where: {
+      covenantId: covenant.id,
+      state: "PENDING",
+      occurredAt: { gte: lastWeek, lt: new Date(lastWeek.getTime() + 7 * 86_400_000) },
+    },
+  });
+  check("no event in the digest's week is still pending", pendingInDigestWeek === 0);
+
   /* ── 6. Revoking notifies the ally immediately ──────────────────── */
   heading("6 · Revoking the covenant notifies the ally immediately");
 

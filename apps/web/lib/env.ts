@@ -23,11 +23,17 @@ type Requirement = { key: string; why: string };
 const REQUIRED_ALWAYS: Requirement[] = [
   {
     key: "CRISIS_LINE_NAME",
-    why: "the crisis line surfaced when Ẹlẹ́rìí stops the flow. Set it for the region you serve.",
+    why: "the support line surfaced when Ẹlẹ́rìí stops the flow. Set it for the region you serve.",
   },
   {
     key: "CRISIS_LINE_CONTACT",
-    why: "how to reach that crisis line — a number a man can actually dial tonight.",
+    why: "how to reach that support line.",
+  },
+  {
+    key: "CRISIS_EMERGENCY_CONTACT",
+    why:
+      "a number that answers at three in the morning. Most national support lines keep office hours — " +
+      "the UAE's 800 HOPE is 8am to 8pm — and this product's whole subject is what happens late at night.",
   },
 ];
 
@@ -139,15 +145,31 @@ export function siteUrl(): string {
   return blank(process.env.NEXT_PUBLIC_SITE_URL) ?? "http://localhost:3000";
 }
 
+export type CrisisResources = {
+  /** The support line: someone to talk to. */
+  name: string;
+  contact: string;
+  /** When it answers, if it is not always. Shown so nobody dials a closed line. */
+  hours?: string;
+  /** A number that answers at any hour. Required, because 01:14 is the point. */
+  emergency: string;
+};
+
 /**
  * The crisis resources. Guaranteed present — `assertEnv` has already run.
  *
  * Read through this rather than `process.env` so there is exactly one place
  * that could ever grow a default, and it does not.
+ *
+ * Two numbers, not one. A counselling line is the better call when it is open,
+ * and most of them are not open at the hour Ẹ̀rí exists to be useful at. Showing
+ * only the daytime number would be a quiet way of offering nothing.
  */
-export function crisisResources(): { name: string; contact: string } {
+export function crisisResources(): CrisisResources {
   return {
     name: process.env.CRISIS_LINE_NAME as string,
     contact: process.env.CRISIS_LINE_CONTACT as string,
+    hours: blank(process.env.CRISIS_LINE_HOURS),
+    emergency: process.env.CRISIS_EMERGENCY_CONTACT as string,
   };
 }

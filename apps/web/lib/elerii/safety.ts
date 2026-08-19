@@ -38,13 +38,14 @@ export { crisisResources };
  * talked past by a longer message.
  */
 export function crisisResponse(): string {
-  const { name, contact } = crisisResources();
+  const { name, contact, hours, emergency } = crisisResources();
   return [
     "I am stopping here, because this needs a person and I am not one.",
     "",
     "Tell your ally now — not in a grace window, now. Then call your pastor.",
     "",
-    `If you are in danger tonight, contact ${name}: ${contact}.`,
+    `${name}: ${contact}${hours ? ` (${hours})` : ""}.`,
+    `If that line is closed, or you are in danger tonight: ${emergency}.`,
     "",
     "I will not draft anything else until you have spoken to someone.",
   ].join("\n");

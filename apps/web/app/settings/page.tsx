@@ -116,6 +116,10 @@ export default async function SettingsPage() {
           </p>
           <p className="mt-3 max-w-prose text-sm text-ink">
             {crisis.name}: {crisis.contact}
+            {crisis.hours ? ` — ${crisis.hours}` : ""}
+          </p>
+          <p className="mt-2 max-w-prose text-sm text-ink">
+            If that line is closed, or you are in danger tonight: {crisis.emergency}.
           </p>
         </section>
 

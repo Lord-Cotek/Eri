@@ -98,6 +98,8 @@ export const registerRequest = z.object({
   label: deviceLabel,
   sentinelVersion: semver,
   classifierVersion: semver,
+  /** Optional, so a sentinel built before this field keeps registering. */
+  osVersion: semver.optional(),
 });
 export type RegisterRequest = z.infer<typeof registerRequest>;
 
@@ -139,6 +141,8 @@ export const heartbeatRequest = z.object({
   deviceId: z.string().min(1),
   sentinelVersion: semver,
   classifierVersion: semver,
+  /** Sent on every heartbeat, so an OS upgrade shows without re-pairing. */
+  osVersion: semver.optional(),
 });
 export type HeartbeatRequest = z.infer<typeof heartbeatRequest>;
 

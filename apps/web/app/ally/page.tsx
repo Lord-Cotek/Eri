@@ -7,7 +7,7 @@ import { StillHereButton } from "@/components/StillHereButton";
 import { Card, Eyebrow, Notice, TONE_TEXT, type Tone } from "@/components/ui";
 import { currentUserId } from "@/lib/auth";
 import { allyCovenant, displayName } from "@/lib/covenant";
-import { allyTimeline, latestDigest, openSilences } from "@/lib/queries";
+import { allyTimeline, coverageFor, latestDigest, openSilences } from "@/lib/queries";
 import { dayAndTime, longDate } from "@/lib/time";
 import { simulatorEnabled } from "@/lib/dev-simulator";
 
@@ -72,10 +72,11 @@ export default async function AllyPage() {
     );
   }
 
-  const [digest, timeline, silences] = await Promise.all([
+  const [digest, timeline, silences, coverage] = await Promise.all([
     latestDigest(covenant.id),
     allyTimeline(covenant.id, userId),
     openSilences(covenant.subjectId),
+    coverageFor(covenant.id),
   ]);
 
   return (
@@ -125,6 +126,16 @@ export default async function AllyPage() {
             <Eyebrow>What has been reported</Eyebrow>
             <span className="text-xs text-muted">Category and time only. Never the content.</span>
           </div>
+
+          {coverage.caveats.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {coverage.caveats.map((caveat) => (
+                <Notice key={caveat} tone="steel">
+                  {caveat}
+                </Notice>
+              ))}
+            </div>
+          )}
 
           {timeline.length === 0 ? (
             <Card className="mt-4 p-8">
@@ -189,6 +200,10 @@ export default async function AllyPage() {
               <p>
                 Do not interrogate him about what it was. You do not know, and neither does anyone else — that
                 is the design, not a limitation.
+              </p>
+              <p>
+                Do not read a quiet week as a report card. Ẹ̀rí sees what his devices can see and no more, and
+                on iPhone that is only attempts it blocked. Silence here means silence here.
               </p>
               <p>
                 If he tells you he is in real trouble, that is bigger than this app. Get him to a person: his

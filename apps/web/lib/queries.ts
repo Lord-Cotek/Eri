@@ -11,7 +11,7 @@
 import "server-only";
 
 import type { AntecedentKind, EventCategory, EventState } from "@prisma/client";
-import { RESOLVED_STATES, SILENCE_ALERT_AFTER_MINUTES } from "@eri/protocol";
+import { PLATFORM_CAPABILITIES, RESOLVED_STATES, SILENCE_ALERT_AFTER_MINUTES } from "@eri/protocol";
 
 import { prisma } from "@/lib/prisma";
 import { addDays, dayKey, startOfDay, weekStart } from "@/lib/time";
@@ -208,6 +208,34 @@ export async function allyTimeline(covenantId: string, allyId: string, take = 40
     disclosureNote: event.disclosureNote,
     acknowledged: event.allyAcks.length > 0,
   }));
+}
+
+/**
+ * Which platforms the subject's devices run on, and whether any of them only
+ * sees part of the picture.
+ *
+ * The ally is shown this because it changes what a quiet timeline *means*. On
+ * iPhone, Ẹ̀rí reports attempts it blocked — nothing else is visible to any app
+ * — so an empty week is not evidence of a good week. Letting him infer
+ * otherwise would be the most damaging thing this product could do quietly.
+ */
+export async function coverageFor(covenantId: string) {
+  const devices = await prisma.device.findMany({
+    where: { covenantId, status: { not: "RETIRED" } },
+    select: { platform: true },
+    distinct: ["platform"],
+  });
+
+  const platforms = devices.map((device) => device.platform);
+  const caveats = [
+    ...new Set(
+      platforms
+        .map((platform) => PLATFORM_CAPABILITIES[platform].caveat)
+        .filter((caveat): caveat is string => Boolean(caveat)),
+    ),
+  ];
+
+  return { platforms, caveats, hasDevices: platforms.length > 0 };
 }
 
 export async function latestDigest(covenantId: string) {

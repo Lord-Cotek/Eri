@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
         status: "ACTIVE",
         sentinelVersion: envelope.sentinelVersion,
         classifierVersion: envelope.classifierVersion,
+        ...(envelope.osVersion ? { osVersion: envelope.osVersion } : {}),
       },
     });
 

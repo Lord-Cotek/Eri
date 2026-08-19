@@ -237,6 +237,9 @@ model Device {
   publicKey         String
   sentinelVersion   String
   classifierVersion String
+  /// The OS the sentinel runs on, e.g. "18.2" or "15". Support triage only —
+  /// a platform version, never a device fingerprint, never shown to the ally.
+  osVersion         String?
 
   registeredAt    DateTime     @default(now())
   lastHeartbeatAt DateTime?

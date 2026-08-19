@@ -380,6 +380,74 @@ knew what Ẹ̀rí was; it now says what being an ally means, that he will never
 shown what the subject saw, that he may decline, and that the link will sign him
 in without needing an account first.
 
+## Phase 2 groundwork
+
+### 23. The UAE support line does not answer at 01:14
+
+The handoff asked for the crisis resources to be set for the UAE. The national
+line is the **Mental Support Line, 800 HOPE (800 4673)**, run by MOHAP and the
+National Programme for Happiness and Wellbeing, in Arabic and English — and it
+is open **8am to 8pm**, not around the clock.
+
+Ẹ̀rí's own canonical example is an event at 01:14. Shipping a daytime-only
+number as the crisis contact would have been a quiet way of offering nothing at
+exactly the hour this product exists to be useful at.
+
+So there are two numbers now, and both are required: `CRISIS_LINE_CONTACT` for
+the counselling line, with optional `CRISIS_LINE_HOURS` so nobody dials a closed
+line, and `CRISIS_EMERGENCY_CONTACT` for a number that always answers (999 / 998
+in the UAE). `lib/env.ts` refuses to boot without either, in every environment.
+
+Sources: the number and its hours were verified against
+[u.ae](https://u.ae/en/information-and-services/health-and-fitness/handling-the-covid-19-outbreak/maintaining-mental-health-in-times-of-covid19)
+and [Khaleej Times](https://www.khaleejtimes.com/lifestyle/mental-health/mental-health-hotlines-in-uae-residents-can-call-text-these-numbers-in-times-of-need).
+Nobody has dialled it from a UAE number to confirm — that is on the
+prerequisites list.
+
+### 24. Silence thresholds are per-platform
+
+iOS cannot hold a 15-minute heartbeat. `BGAppRefreshTask` is best-effort and the
+system decides when it runs; an idle phone overnight may not run one for hours.
+Holding an iPhone to Android's six-hour ALERT would fire on a device behaving
+exactly as Apple intends — and an ally who learns to ignore silence alerts is an
+ally who ignores the one that matters.
+
+`SILENCE_THRESHOLDS` in `packages/protocol` gives iOS 4 hours to WARNING and 18
+to ALERT, against Android's 1 and 6. It lives in the protocol rather than the
+server so the sweep, the devices page and the sentinels all quote the same
+numbers.
+
+### 25. A quiet iPhone timeline means something different
+
+iOS v1 is Tier A — a content filter and Screen Time shields. A filter sees flow
+metadata, never pixels, so **every event an iPhone can produce is
+`BLOCKED_ATTEMPT`**, and material reached by a route the filter does not cover
+produces no event at all.
+
+An ally reading an empty week has to know which kind of empty he is looking at.
+`PLATFORM_CAPABILITIES` carries the caveat in the protocol — not in a web
+template — because it changes what the data *means*, and it is surfaced on both
+the devices page and the ally's timeline:
+
+> On iPhone, Ẹ̀rí reports attempts it blocked — not everything that happened.
+> Apple gives no app sight of another app's screen. A quiet iPhone timeline is
+> not evidence that a week went well.
+
+The ally's guidance copy gained a matching line. Letting a man infer "quiet week,
+good week" from a platform limitation would be the most damaging thing this
+product could do silently.
+
+### 26. Device attestation is a documented TODO
+
+App Attest and Play Integrity are the right answer to a stolen device key: a
+signature proves possession of the key, not that the key still lives on the
+phone it was minted on. Both cost real integration work and neither is free at
+scale.
+
+Not in v1, and named here rather than left implicit. The mitigation meanwhile is
+that a stolen key can only *manufacture* events about a man, not read anything —
+the database holds nothing worth stealing, by design.
+
 ---
 
 ## Things left open on purpose
@@ -419,7 +487,7 @@ npm run start --workspace @eri/web        # in one shell
 npm run acceptance                        # in another
 ```
 
-Last run: **52 passed, 0 failed**, against a database built by
+Last run: **54 passed, 0 failed**, against a database built by
 `prisma migrate deploy` from empty.
 
 | # | Criterion | Result |
@@ -433,6 +501,7 @@ Last run: **52 passed, 0 failed**, against a database built by
 | 7 | A weekly digest generates with an Ẹlẹ́rìí question | pass (see below) |
 | 8 | Privacy grep returns nothing | pass, with the amendment above |
 | 9 | `npm run build` typechecks clean | pass |
+| 2b | Digest arithmetic reconciles; no count implies an open window | pass |
 
 Criterion 2 is asserted four ways: the ally has no notification row, his page
 contains no timeline entry, the HTML does not contain the event id, the category
