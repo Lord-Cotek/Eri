@@ -11,7 +11,7 @@
 
        1. The registered legal entity and its address. "COTEK" appears below
           without either.
-       2. That privacy@cotek.app receives mail and somebody answers it.
+       2. That support@cotek.live receives mail and somebody answers it.
 
      The version is PRIVACY_VERSION in lib/legal.ts, rendered in the page
      header rather than repeated here. Bump it whenever the wording changes.
@@ -38,7 +38,7 @@ tell you even if we wanted to.
 Ẹ̀rí is operated by **COTEK**, in the United Arab Emirates. We are the
 controller of the data described here.
 
-Questions, requests, or a complaint: [privacy@cotek.app](mailto:privacy@cotek.app).
+Questions, requests, or a complaint: [support@cotek.live](mailto:support@cotek.live).
 
 ## What Ẹ̀rí never collects
 
@@ -177,7 +177,7 @@ are kept with the account.
 
 ## Deleting your account
 
-Write to [privacy@cotek.app](mailto:privacy@cotek.app) from the address on the
+Write to [support@cotek.live](mailto:support@cotek.live) from the address on the
 account. We will delete your account, your devices, your events and your
 covenant record, and confirm when it is done.
 
@@ -192,7 +192,7 @@ Two honest caveats:
 ## Your rights
 
 You may ask us what we hold about you, ask for a copy, ask us to correct it, or
-ask us to delete it. Write to [privacy@cotek.app](mailto:privacy@cotek.app).
+ask us to delete it. Write to [support@cotek.live](mailto:support@cotek.live).
 
 Depending on where you live, the UAE Personal Data Protection Law or the UK and
 EU GDPR may give you these rights as a matter of law rather than as a matter of
@@ -229,7 +229,7 @@ takes effect if the change is one that matters.
 
 ## Contact
 
-[privacy@cotek.app](mailto:privacy@cotek.app)
+[support@cotek.live](mailto:support@cotek.live)
 
 ---
 

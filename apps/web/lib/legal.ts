@@ -15,7 +15,7 @@ import { join } from "node:path";
  * The version of `content/privacy-policy.md` currently published. Bump it
  * whenever the wording changes — the stores and the policy itself both cite it.
  */
-export const PRIVACY_VERSION = "2026-08-18";
+export const PRIVACY_VERSION = "2026-08-19";
 
 let cached: string | null = null;
 

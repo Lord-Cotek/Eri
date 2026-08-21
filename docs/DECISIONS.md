@@ -472,7 +472,7 @@ Two disclosures worth calling out, because a template would have missed both:
 
 Marked `<!-- REVIEW: legal -->` like the covenant terms. Two facts the build
 cannot know are flagged in the file and in the prerequisites: the registered
-legal entity and its address, and whether `privacy@cotek.app` actually receives
+legal entity and its address, and whether `support@cotek.live` actually receives
 mail.
 
 Account deletion is described honestly as a manual process, because that is what

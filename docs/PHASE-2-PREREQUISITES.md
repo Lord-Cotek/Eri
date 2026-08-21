@@ -49,7 +49,7 @@ changing one later means reapplying.
   before submission — see item 5.
 - **A data deletion URL.** Play requires apps with accounts to offer account
   deletion, and the console field wants a *URL*, not an email address. The
-  policy currently says "write to privacy@cotek.app", which is honest but may
+  policy currently says "write to support@cotek.live", which is honest but may
   not satisfy the field. Ask me to build a self-serve deletion route and I
   will — it needs a decision first about what happens to a covenant the other
   man is still in.
@@ -104,7 +104,7 @@ content filters and background refresh all need real hardware.
    the data, both want a lawyer before public launch — not before TestFlight.
    Two facts in the privacy policy the build cannot know and you must confirm:
    the **registered legal entity and its address** (it currently says only
-   "COTEK, in the United Arab Emirates"), and that **privacy@cotek.app receives
+   "COTEK, in the United Arab Emirates"), and that **support@cotek.live receives
    mail and somebody answers it**. That address is the contact for every access
    and deletion request the policy promises to honour.
 5. **UAE distribution.** Check whether an app of this description has any local
