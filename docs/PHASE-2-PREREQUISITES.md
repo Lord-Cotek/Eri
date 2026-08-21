@@ -44,8 +44,15 @@ changing one later means reapplying.
   justification and a **demo video** showing the in-app disclosure and the
   persistent notification.
 - **Sensitive permissions declaration** for `PACKAGE_USAGE_STATS`.
-- A **live privacy policy URL** — must be reachable before you submit. Host it
-  at `https://eri.cotek.app/privacy`; say the word and I will build the page.
+- A **live privacy policy URL**. Built: `https://eri.cotek.app/privacy`, public,
+  no account needed, in the sitemap. Two things in it need your confirmation
+  before submission — see item 5.
+- **A data deletion URL.** Play requires apps with accounts to offer account
+  deletion, and the console field wants a *URL*, not an email address. The
+  policy currently says "write to privacy@cotek.app", which is honest but may
+  not satisfy the field. Ask me to build a self-serve deletion route and I
+  will — it needs a decision first about what happens to a covenant the other
+  man is still in.
 - Data safety form: declare that no personal or sensitive user data leaves the
   device. That is true and unusually easy to answer here.
 
@@ -92,9 +99,14 @@ content filters and background refresh all need real hardware.
 3. **The Android classifier.** A bundled TFLite/MediaPipe model has a size, a
    licence and a false-positive rate. Tell me whether you have one in mind or
    want me to pick and benchmark candidates.
-4. **Legal review of `content/covenant-terms.md`.** Still marked
-   `<!-- REVIEW: legal -->`. Given the UAE base and the nature of the data, this
-   wants a lawyer before public launch — not before TestFlight.
+4. **Legal review of `content/covenant-terms.md` and `content/privacy-policy.md`.**
+   Both marked `<!-- REVIEW: legal -->`. Given the UAE base and the nature of
+   the data, both want a lawyer before public launch — not before TestFlight.
+   Two facts in the privacy policy the build cannot know and you must confirm:
+   the **registered legal entity and its address** (it currently says only
+   "COTEK, in the United Arab Emirates"), and that **privacy@cotek.app receives
+   mail and somebody answers it**. That address is the contact for every access
+   and deletion request the policy promises to honour.
 5. **UAE distribution.** Check whether an app of this description has any local
    registration requirement before you list it.
 

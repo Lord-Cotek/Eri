@@ -169,7 +169,12 @@ export default function Landing() {
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-4xl flex-col gap-3 px-6 py-10 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
           <CotekEyebrow />
-          <p>For adults, entered freely, by both.</p>
+          <div className="flex flex-wrap items-center gap-5">
+            <Link href="/privacy" className="underline-offset-4 hover:text-ink hover:underline">
+              Privacy
+            </Link>
+            <p>For adults, entered freely, by both.</p>
+          </div>
         </div>
       </footer>
     </div>

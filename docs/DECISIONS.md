@@ -448,6 +448,55 @@ Not in v1, and named here rather than left implicit. The mitigation meanwhile is
 that a stolen key can only *manufacture* events about a man, not read anything —
 the database holds nothing worth stealing, by design.
 
+### 27. The privacy policy is written from the schema
+
+`/privacy` is public, indexable, needs no account, and is in the sitemap —
+because a store reviewer should not have to be told where it is, and neither
+should a man deciding whether to install this at all.
+
+Every claim in `content/privacy-policy.md` is checkable against
+`prisma/schema.prisma`, `packages/protocol/src/schemas.ts` and
+`docs/PRIVACY-INVARIANTS.md`. It was written from those rather than from a
+template, which is why it can list what is collected field by field and put the
+longer list — what is *never* collected — first.
+
+Two disclosures worth calling out, because a template would have missed both:
+
+- **Ẹlẹ́rìí receives the subject's own typed words** when he asks for a draft, so
+  the draft sounds like him. That is real personal data going to a third party
+  and the policy says so plainly, along with the fact that the covenant works
+  identically if he never presses that button.
+- **Events are never deleted.** The policy states it rather than hiding behind a
+  generic retention clause: the honesty of the record is the product, and a
+  record that could be quietly edited would not be worth having.
+
+Marked `<!-- REVIEW: legal -->` like the covenant terms. Two facts the build
+cannot know are flagged in the file and in the prerequisites: the registered
+legal entity and its address, and whether `privacy@cotek.app` actually receives
+mail.
+
+Account deletion is described honestly as a manual process, because that is what
+it currently is. Google Play requires a deletion *URL* for apps with accounts,
+so a self-serve route is likely needed before submission — recorded in the
+prerequisites rather than half-built.
+
+### 28. Three bugs in the Markdown renderer, found by using it
+
+The renderer written for the covenant terms had never met a document with
+links. Rendering the policy surfaced three faults, all fixed:
+
+- `**[Vercel](https://…)**` rendered as literal markup, because bold was matched
+  first and its contents were not re-parsed. Inline parsing is recursive now.
+- A wrapped list item closed the list and became a paragraph glued to the text
+  above it. Indented continuation lines now join the item they belong to.
+- `*italic*` was not supported at all and rendered with its asterisks showing.
+
+Links are built as elements with an allowlisted scheme — http(s), mailto, or a
+site-relative path — and anything else renders as plain text. A legal document
+is the last place to introduce a `dangerouslySetInnerHTML`.
+
+The covenant terms render through the same component and were re-checked.
+
 ---
 
 ## Things left open on purpose

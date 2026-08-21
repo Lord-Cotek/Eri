@@ -63,7 +63,12 @@ export function Shell({
       <footer className="mt-20 border-t border-border">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-8 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
           <CotekEyebrow />
-          <p>The image never leaves the device. Nothing here has ever seen it.</p>
+          <div className="flex flex-wrap items-center gap-5">
+            <Link href="/privacy" className="underline-offset-4 hover:text-ink hover:underline">
+              Privacy
+            </Link>
+            <p>The image never leaves the device. Nothing here has ever seen it.</p>
+          </div>
         </div>
       </footer>
     </div>

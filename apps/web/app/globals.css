@@ -168,6 +168,12 @@
     color: var(--ink);
     font-weight: 500;
   }
+  /* Mono has no true italic; a subtle shift in colour carries the emphasis
+     without the synthesised slant browsers would otherwise fake. */
+  .prose-plain em {
+    font-style: normal;
+    color: var(--ink);
+  }
   .prose-plain hr {
     border: 0;
     height: 1px;

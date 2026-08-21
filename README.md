@@ -141,6 +141,7 @@ generates weekly digests, and prunes spent nonces. Authorised by
 | `/ally` | the ally | one question to ask this week, then a sober timeline of resolved events |
 | `/devices` | the subject | registration, heartbeat status, silence warnings |
 | `/settings` | both | grace window, ending the covenant |
+| `/privacy` | anyone | the privacy policy — public and indexable, as both stores require |
 | `/simulator` | dev only | the simulated sentinel, without a terminal |
 
 ## Ẹlẹ́rìí

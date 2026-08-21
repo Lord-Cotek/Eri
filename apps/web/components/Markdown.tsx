@@ -3,7 +3,8 @@ import { Fragment, type ReactNode } from "react";
 /**
  * A very small Markdown renderer for the covenant terms.
  *
- * It handles headings, paragraphs, lists, rules and bold, and nothing else.
+ * It handles headings, paragraphs, lists, rules, bold, italic and links, and
+ * nothing else.
  * It builds React elements rather than HTML strings — the terms are our own
  * file, but a legal document is the last place to introduce a
  * `dangerouslySetInnerHTML`, and a reviewer should be able to see that at a
@@ -13,13 +14,54 @@ import { Fragment, type ReactNode } from "react";
  * stays in the source without reaching a reader.
  */
 
+/**
+ * Inline marks: bold and links.
+ *
+ * Links are built as elements, never as an href interpolated into raw HTML, and
+ * anything that is not http(s) or mailto is rendered as plain text. These files
+ * are ours, but a privacy policy is the last document to give a
+ * `dangerouslySetInnerHTML` to, and a reviewer should see that at a glance.
+ */
+function safeHref(href: string): string | null {
+  const trimmed = href.trim();
+  return /^(https?:\/\/|mailto:|\/)/i.test(trimmed) ? trimmed : null;
+}
+
 function inline(text: string, keyPrefix: string): ReactNode[] {
-  // Bold is the only inline mark the terms use.
-  return text.split(/(\*\*[^*]+\*\*)/g).map((chunk, index) => {
+  // Ordered: bold before italic, so `**x**` is not read as `*` + `*x*`.
+  const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)\s]+\)|\*[^*\s][^*]*\*)/g);
+
+  return parts.map((chunk, index) => {
     const key = `${keyPrefix}-${index}`;
+
+    // Recursive, so `**[Vercel](https://…)**` renders as a bold link rather
+    // than as literal markup.
     if (chunk.startsWith("**") && chunk.endsWith("**") && chunk.length > 4) {
-      return <strong key={key}>{chunk.slice(2, -2)}</strong>;
+      return <strong key={key}>{inline(chunk.slice(2, -2), `${key}-b`)}</strong>;
     }
+
+    if (chunk.startsWith("*") && chunk.endsWith("*") && chunk.length > 2) {
+      return <em key={key}>{inline(chunk.slice(1, -1), `${key}-i`)}</em>;
+    }
+
+    const link = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(chunk);
+    if (link) {
+      const [, label, href] = link;
+      const safe = safeHref(href as string);
+      if (!safe) return <Fragment key={key}>{label}</Fragment>;
+      const external = safe.startsWith("http");
+      return (
+        <a
+          key={key}
+          href={safe}
+          className="text-steel underline-offset-4 hover:underline"
+          {...(external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
+        >
+          {label}
+        </a>
+      );
+    }
+
     return <Fragment key={key}>{chunk}</Fragment>;
   });
 }
@@ -88,6 +130,14 @@ export function Markdown({ source, className = "" }: { source: string; className
     if (line.startsWith("- ")) {
       flushParagraph();
       list.push(line.slice(2));
+      continue;
+    }
+
+    // A wrapped list item: indented, with a list open. Without this the list is
+    // closed mid-item and the remainder becomes a paragraph glued to the text
+    // before it.
+    if (list.length > 0 && /^\s+\S/.test(raw)) {
+      list[list.length - 1] = `${list[list.length - 1]} ${line.trim()}`;
       continue;
     }
 
